@@ -1,0 +1,29 @@
+{
+  "message": "Calf raises on smith machine 3x20 85 lbs on each side",
+  "now": "2026-07-14T20:00",
+  "expected": {
+    "workouts": [
+      {
+        "date": "2026-07-14",
+        "type": "strength",
+        "start": null,
+        "end": null,
+        "notes": null,
+        "raw_text": "Calf raises on smith machine 3x20 85 lbs on each side",
+        "sets": [
+          {
+            "exercise": "Smith Calf Raise",
+            "exercise_raw": "Calf raises on smith machine",
+            "grp": 1,
+            "sets": 3,
+            "reps": 20.0,
+            "per_side_lbs": 85.0,
+            "total_lbs": 195.0,
+            "assist_lbs": null,
+            "notes": null
+          }
+        ]
+      }
+    ]
+  }
+}

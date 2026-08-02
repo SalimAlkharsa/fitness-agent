@@ -1,0 +1,71 @@
+{
+  "message": "Need to log some workouts\n\nYesterday 5 to 7 pm\n\nBench 4x7, 40 lbs on each side\nBench assisted elevated leg dips 4x10\nTricep push downs 3x10\nShoulder press 3x10 15lbs in each side\n\nThen basketball today 2:30 to 4:20 pm",
+  "now": "2026-07-14T20:00",
+  "expected": {
+    "workouts": [
+      {
+        "date": "2026-07-13",
+        "type": "strength",
+        "start": "17:00",
+        "end": "19:00",
+        "notes": null,
+        "raw_text": "Need to log some workouts\n\nYesterday 5 to 7 pm\n\nBench 4x7, 40 lbs on each side\nBench assisted elevated leg dips 4x10\nTricep push downs 3x10\nShoulder press 3x10 15lbs in each side\n\nThen basketball today 2:30 to 4:20 pm",
+        "sets": [
+          {
+            "exercise": "Bench Press",
+            "exercise_raw": "Bench",
+            "grp": 1,
+            "sets": 4,
+            "reps": 7.0,
+            "per_side_lbs": 40.0,
+            "total_lbs": 125.0,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Assisted Elevated Leg Dips",
+            "exercise_raw": "Bench assisted elevated leg dips",
+            "grp": 1,
+            "sets": 4,
+            "reps": 10.0,
+            "per_side_lbs": null,
+            "total_lbs": null,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Tricep Push Down",
+            "exercise_raw": "Tricep push downs",
+            "grp": 1,
+            "sets": 3,
+            "reps": 10.0,
+            "per_side_lbs": null,
+            "total_lbs": null,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Shoulder Press",
+            "exercise_raw": "Shoulder press",
+            "grp": 1,
+            "sets": 3,
+            "reps": 10.0,
+            "per_side_lbs": 15.0,
+            "total_lbs": 75.0,
+            "assist_lbs": null,
+            "notes": null
+          }
+        ]
+      },
+      {
+        "date": "2026-07-14",
+        "type": "basketball",
+        "start": "14:30",
+        "end": "16:20",
+        "notes": null,
+        "raw_text": "Need to log some workouts\n\nYesterday 5 to 7 pm\n\nBench 4x7, 40 lbs on each side\nBench assisted elevated leg dips 4x10\nTricep push downs 3x10\nShoulder press 3x10 15lbs in each side\n\nThen basketball today 2:30 to 4:20 pm",
+        "sets": []
+      }
+    ]
+  }
+}

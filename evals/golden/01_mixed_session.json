@@ -1,0 +1,73 @@
+{
+  "message": "4x8 60LBs Squats on Both Sides\n2x15 20LBs roman glute swing\n3x8 Australian Pull Ups\nBar Row 3x15 20Lbs on each side\nCalf Raises 20x85lbs on each side 3 sts",
+  "now": "2026-07-14T20:00",
+  "expected": {
+    "workouts": [
+      {
+        "date": "2026-07-14",
+        "type": "strength",
+        "start": null,
+        "end": null,
+        "notes": null,
+        "raw_text": "4x8 60LBs Squats on Both Sides\n2x15 20LBs roman glute swing\n3x8 Australian Pull Ups\nBar Row 3x15 20Lbs on each side\nCalf Raises 20x85lbs on each side 3 sts",
+        "sets": [
+          {
+            "exercise": "Back Squat",
+            "exercise_raw": "Squats on Both Sides",
+            "grp": 1,
+            "sets": 4,
+            "reps": 8.0,
+            "per_side_lbs": 60.0,
+            "total_lbs": 165.0,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Roman Glute Swing",
+            "exercise_raw": "roman glute swing",
+            "grp": 1,
+            "sets": 2,
+            "reps": 15.0,
+            "per_side_lbs": null,
+            "total_lbs": 20.0,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Australian Pull Up",
+            "exercise_raw": "Australian Pull Ups",
+            "grp": 1,
+            "sets": 3,
+            "reps": 8.0,
+            "per_side_lbs": null,
+            "total_lbs": null,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Bar Row",
+            "exercise_raw": "Bar Row",
+            "grp": 1,
+            "sets": 3,
+            "reps": 15.0,
+            "per_side_lbs": 20.0,
+            "total_lbs": 85.0,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Smith Calf Raise",
+            "exercise_raw": "Calf Raises",
+            "grp": 1,
+            "sets": 3,
+            "reps": 20.0,
+            "per_side_lbs": 85.0,
+            "total_lbs": 195.0,
+            "assist_lbs": null,
+            "notes": null
+          }
+        ]
+      }
+    ]
+  }
+}

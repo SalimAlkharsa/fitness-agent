@@ -1,0 +1,29 @@
+{
+  "message": "3.5 Real Pull Ups",
+  "now": "2026-07-14T20:00",
+  "expected": {
+    "workouts": [
+      {
+        "date": "2026-07-14",
+        "type": "strength",
+        "start": null,
+        "end": null,
+        "notes": null,
+        "raw_text": "3.5 Real Pull Ups",
+        "sets": [
+          {
+            "exercise": "Pull Up",
+            "exercise_raw": "Real Pull Ups",
+            "grp": 1,
+            "sets": 1,
+            "reps": 3.5,
+            "per_side_lbs": null,
+            "total_lbs": null,
+            "assist_lbs": null,
+            "notes": null
+          }
+        ]
+      }
+    ]
+  }
+}

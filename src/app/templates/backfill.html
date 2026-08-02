@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Backfill — Fitness Agent{% endblock %}
+{% block body %}
+<div class="topbar">
+  <span>Backfill history</span>
+  <a href="{{ base }}/" style="color:var(--muted); font-size:.85rem;">← chat</a>
+</div>
+
+<div id="thread">
+  <div class="note">
+    Paste your historical workout dump below (blank line between messages). Each is
+    parsed into confirm cards you can edit, ✅ individually, or “Confirm all”. Already
+    logged messages are skipped.
+  </div>
+  <div id="review"></div>
+</div>
+
+<form class="composer" hx-post="{{ base }}/backfill" hx-target="#review" hx-swap="innerHTML"
+      hx-disabled-elt="find button" style="flex-direction:column; gap:.5rem;">
+  <textarea name="dump" rows="6" required
+            style="width:100%; padding:.6rem; border-radius:10px; border:1px solid #2b313d; background:var(--panel2); color:var(--text); font-size:1rem;"
+            placeholder="4x8 60LBs Squats on Both Sides&#10;...&#10;&#10;Deadlift 3x10 hex bar 65lbs on each side"></textarea>
+  <button type="submit" style="background:var(--accent); border:0; color:#fff; border-radius:20px; padding:.6rem;">
+    <span class="htmx-indicator">Parsing…</span><span>Parse dump</span>
+  </button>
+</form>
+{% endblock %}

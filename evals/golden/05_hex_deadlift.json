@@ -1,0 +1,29 @@
+{
+  "message": "Deadlift 3x10 hex bar 65lbs on each side",
+  "now": "2026-07-14T20:00",
+  "expected": {
+    "workouts": [
+      {
+        "date": "2026-07-14",
+        "type": "strength",
+        "start": null,
+        "end": null,
+        "notes": null,
+        "raw_text": "Deadlift 3x10 hex bar 65lbs on each side",
+        "sets": [
+          {
+            "exercise": "Hex Deadlift",
+            "exercise_raw": "Deadlift",
+            "grp": 1,
+            "sets": 3,
+            "reps": 10.0,
+            "per_side_lbs": 65.0,
+            "total_lbs": 185.0,
+            "assist_lbs": null,
+            "notes": null
+          }
+        ]
+      }
+    ]
+  }
+}

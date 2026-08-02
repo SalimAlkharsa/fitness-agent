@@ -1,0 +1,73 @@
+{
+  "message": "Squats 5 sets of 6 doing 60lbs on each side\n\nCalf Raises on Smith Machine doing 75 on each side 4 sets of 20\n\nSoleus raise on smith machine doing 1 set 30 on each side 15 reps then 3 sets of 60 on each side 15 reps\n\nHip abductor outer doing 3 sets of 10 at 145lbs",
+  "now": "2026-07-14T20:00",
+  "expected": {
+    "workouts": [
+      {
+        "date": "2026-07-14",
+        "type": "strength",
+        "start": null,
+        "end": null,
+        "notes": null,
+        "raw_text": "Squats 5 sets of 6 doing 60lbs on each side\n\nCalf Raises on Smith Machine doing 75 on each side 4 sets of 20\n\nSoleus raise on smith machine doing 1 set 30 on each side 15 reps then 3 sets of 60 on each side 15 reps\n\nHip abductor outer doing 3 sets of 10 at 145lbs",
+        "sets": [
+          {
+            "exercise": "Back Squat",
+            "exercise_raw": "Squats",
+            "grp": 1,
+            "sets": 5,
+            "reps": 6.0,
+            "per_side_lbs": 60.0,
+            "total_lbs": 165.0,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Smith Calf Raise",
+            "exercise_raw": "Calf Raises on Smith Machine",
+            "grp": 1,
+            "sets": 4,
+            "reps": 20.0,
+            "per_side_lbs": 75.0,
+            "total_lbs": 175.0,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Soleus Raise",
+            "exercise_raw": "Soleus raise on smith machine",
+            "grp": 1,
+            "sets": 1,
+            "reps": 15.0,
+            "per_side_lbs": 30.0,
+            "total_lbs": 85.0,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Soleus Raise",
+            "exercise_raw": "Soleus raise on smith machine",
+            "grp": 2,
+            "sets": 3,
+            "reps": 15.0,
+            "per_side_lbs": 60.0,
+            "total_lbs": 145.0,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Hip Abduction (Out)",
+            "exercise_raw": "Hip abductor outer",
+            "grp": 1,
+            "sets": 3,
+            "reps": 10.0,
+            "per_side_lbs": null,
+            "total_lbs": 145.0,
+            "assist_lbs": null,
+            "notes": null
+          }
+        ]
+      }
+    ]
+  }
+}

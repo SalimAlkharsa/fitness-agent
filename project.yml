@@ -1,0 +1,34 @@
+# DigitalOcean Functions project spec. `make deploy` stages the code into
+# packages/ (gitignored) and runs `doctl serverless deploy . --remote-build`.
+# Values are substituted from the deploying shell's environment / .env; every
+# referenced variable must be set and non-empty (the Makefile provides defaults).
+environment: {}
+parameters: {}
+packages:
+  - name: fitness
+    functions:
+      - name: app
+        # NOT python:default — that resolves to 3.9, which can't evaluate the
+        # `str | None` annotations pydantic resolves at runtime.
+        runtime: python:3.11
+        web: raw
+        limits:
+          # Worst-case chat turn: up to 6 sequential free-tier LLM calls with
+          # retries — give it headroom. Single user, so GiB-s stays tiny.
+          timeout: 300000 # ms
+          memory: 512 # MB
+        environment:
+          # Single-quoted: values are substituted before YAML parsing, and the
+          # inline GOOGLE_SA_JSON is full of double quotes.
+          OPENROUTER_API_KEY: '${OPENROUTER_API_KEY}'
+          GOOGLE_SA_JSON: '${GOOGLE_SA_JSON}'
+          SHEET_ID: '${SHEET_ID}'
+          PASSPHRASE: '${PASSPHRASE}'
+          SECRET_KEY: '${SECRET_KEY}'
+          BASE_PATH: '${BASE_PATH}'
+          MODEL: '${MODEL}'
+          TOOL_MODE: '${TOOL_MODE}'
+          # Namespace auth key for self-invoke (async /chat). Host + namespace
+          # come from the runtime-injected __OW_API_HOST/__OW_NAMESPACE; the key
+          # is NOT injected (__OW_API_KEY is withheld), so pass it explicitly.
+          DO_FN_AUTH: '${DO_FN_AUTH}'

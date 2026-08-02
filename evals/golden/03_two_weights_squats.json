@@ -1,0 +1,40 @@
+{
+  "message": "3x60 lbs on each side squats x7\n1x30 lbs on each side squats x8",
+  "now": "2026-07-14T20:00",
+  "expected": {
+    "workouts": [
+      {
+        "date": "2026-07-14",
+        "type": "strength",
+        "start": null,
+        "end": null,
+        "notes": null,
+        "raw_text": "3x60 lbs on each side squats x7\n1x30 lbs on each side squats x8",
+        "sets": [
+          {
+            "exercise": "Back Squat",
+            "exercise_raw": "squats",
+            "grp": 1,
+            "sets": 3,
+            "reps": 7.0,
+            "per_side_lbs": 60.0,
+            "total_lbs": 165.0,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Back Squat",
+            "exercise_raw": "squats",
+            "grp": 2,
+            "sets": 1,
+            "reps": 8.0,
+            "per_side_lbs": 30.0,
+            "total_lbs": 105.0,
+            "assist_lbs": null,
+            "notes": null
+          }
+        ]
+      }
+    ]
+  }
+}

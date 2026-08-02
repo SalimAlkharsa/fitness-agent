@@ -1,0 +1,17 @@
+{
+  "message": "basketball today 2:30 to 4:20 pm",
+  "now": "2026-07-14T20:00",
+  "expected": {
+    "workouts": [
+      {
+        "date": "2026-07-14",
+        "type": "basketball",
+        "start": "14:30",
+        "end": "16:20",
+        "notes": null,
+        "raw_text": "basketball today 2:30 to 4:20 pm",
+        "sets": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,89 @@
+{# Editable confirm card for ONE parsed workout. Fields are editable; on ✅ the
+   form re-POSTs to /confirm which re-validates through Pydantic before writing. #}
+{% set pw = card.workout %}
+<form class="card" id="card-{{ card.token[-12:] }}"
+      hx-post="{{ base }}/confirm" hx-target="#card-{{ card.token[-12:] }}" hx-swap="outerHTML">
+  <input type="hidden" name="token" value="{{ card.token }}">
+  <input type="hidden" name="w-raw" value="{{ pw.raw_text }}">
+  <input type="hidden" name="n_sets" value="{{ pw.sets|length }}">
+  <h4>Log this workout?</h4>
+  {% if error %}<div class="error" style="margin-bottom:.4rem">{{ error }}</div>{% endif %}
+  {% if card.duplicate %}
+  <div class="dupe-warn" role="alert"
+       style="margin-bottom:.5rem; padding:.45rem .6rem; border-radius:.4rem;
+              border:1px solid #e0a500; background:rgba(224,165,0,.12); font-size:.9em;">
+    ⚠️
+    {% if card.duplicate.kind == 'exact' %}
+      You already logged this exact text — <b>{{ card.duplicate.workout_id }}</b>
+      ({{ card.duplicate.type }}, {{ card.duplicate.date }}). Log again anyway, or ❌ to discard.
+    {% else %}
+      Looks like a workout you already logged: <b>{{ card.duplicate.workout_id }}</b>
+      ({{ card.duplicate.type }} on {{ card.duplicate.date }}, same exercises).
+      Log anyway, or ❌ to discard.
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="meta" style="display:flex; gap:.4rem; flex-wrap:wrap;">
+    <input name="w-date" value="{{ pw.date }}" size="10" aria-label="date">
+    <input name="w-type" value="{{ pw.type }}" size="9" aria-label="type">
+    <input name="w-start" value="{{ pw.start or '' }}" size="5" placeholder="start" aria-label="start">
+    <input name="w-end" value="{{ pw.end or '' }}" size="5" placeholder="end" aria-label="end">
+  </div>
+
+  {% if pw.sets %}
+  <div class="tablewrap">
+  <table>
+    <thead>
+      <tr><th>Exercise</th><th>Grp</th><th>Sets</th><th>Reps</th><th>/side</th><th>Total</th><th>Assist</th></tr>
+    </thead>
+    <tbody>
+      {% for s in pw.sets %}
+      {% set i = loop.index0 %}
+      <tr>
+        <td>
+          <input name="s{{ i }}-exercise" value="{{ s.exercise }}" size="14"
+                 {% if i in card.unknowns %}style="border-color:#e0a500"{% endif %}>
+          <input type="hidden" name="s{{ i }}-exercise_raw" value="{{ s.exercise_raw }}">
+          <input type="hidden" name="s{{ i }}-notes" value="{{ s.notes or '' }}">
+        </td>
+        <td><input name="s{{ i }}-grp" value="{{ s.grp }}" size="1"></td>
+        <td><input name="s{{ i }}-sets" value="{{ s.sets }}" size="2"></td>
+        <td><input name="s{{ i }}-reps" value="{{ '%g'|format(s.reps) }}" size="3"></td>
+        <td><input name="s{{ i }}-per_side" value="{{ '%g'|format(s.per_side_lbs) if s.per_side_lbs is not none else '' }}" size="3"></td>
+        <td><input name="s{{ i }}-total" value="{{ '%g'|format(s.total_lbs) if s.total_lbs is not none else '' }}" size="3"></td>
+        <td><input name="s{{ i }}-assist" value="{{ '%g'|format(s.assist_lbs) if s.assist_lbs is not none else '' }}" size="3"></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+    <div class="meta">No sets (activity session).</div>
+  {% endif %}
+
+  {% for i, u in card.unknowns.items() %}
+  <div class="kbq" style="margin-top:.5rem; background:#12151c; padding:.5rem; border-radius:8px;">
+    <div style="font-size:.85rem; margin-bottom:.3rem;">
+      <b>{{ u.raw }}</b> — which exercise is this?
+    </div>
+    {% for cand in u.candidates %}
+      <label style="display:block; font-size:.85rem;">
+        <input type="radio" name="kb{{ i }}-choice" value="{{ cand }}"> same as <i>{{ cand }}</i>
+      </label>
+    {% endfor %}
+    <label style="display:block; font-size:.85rem;">
+      <input type="radio" name="kb{{ i }}-choice" value="__new__" checked> new exercise —
+      <select name="kb{{ i }}-equipment">
+        {% for eq in card.equipment %}<option value="{{ eq }}">{{ eq }}</option>{% endfor %}
+      </select>
+      base <input name="kb{{ i }}-base" value="0" size="3"> lbs
+    </label>
+  </div>
+  {% endfor %}
+
+  <div class="card-actions">
+    <button class="btn ok" type="submit" name="decision" value="confirm">✅ Log it</button>
+    <button class="btn bad" type="submit" name="decision" value="discard">❌ Discard</button>
+  </div>
+</form>

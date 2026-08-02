@@ -1,0 +1,15 @@
+{# Confirm card for undo (workout deletion). #}
+<form class="card" id="card-{{ card.token[-12:] }}"
+      hx-post="{{ base }}/confirm" hx-target="#card-{{ card.token[-12:] }}" hx-swap="outerHTML">
+  <input type="hidden" name="token" value="{{ card.token }}">
+  {% if card.workout_id %}
+    <h4>Delete {{ card.workout_id }}?</h4>
+    <div class="meta">{{ card.label }}</div>
+    <div class="card-actions">
+      <button class="btn bad" type="submit" name="decision" value="confirm">🗑️ Delete</button>
+      <button class="btn ok" type="submit" name="decision" value="cancel">Keep</button>
+    </div>
+  {% else %}
+    <div class="meta">No workout found to delete.</div>
+  {% endif %}
+</form>

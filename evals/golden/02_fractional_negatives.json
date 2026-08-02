@@ -1,0 +1,73 @@
+{
+  "message": "- 3.5 Real Pull Ups 4 negative pull ups\n- 2.5 Real Pull ups 4 negative pull ups\n- 8 Australian pull ups",
+  "now": "2026-07-14T20:00",
+  "expected": {
+    "workouts": [
+      {
+        "date": "2026-07-14",
+        "type": "strength",
+        "start": null,
+        "end": null,
+        "notes": null,
+        "raw_text": "- 3.5 Real Pull Ups 4 negative pull ups\n- 2.5 Real Pull ups 4 negative pull ups\n- 8 Australian pull ups",
+        "sets": [
+          {
+            "exercise": "Pull Up",
+            "exercise_raw": "Real Pull Ups",
+            "grp": 1,
+            "sets": 1,
+            "reps": 3.5,
+            "per_side_lbs": null,
+            "total_lbs": null,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Pull Up",
+            "exercise_raw": "Real Pull ups",
+            "grp": 2,
+            "sets": 1,
+            "reps": 2.5,
+            "per_side_lbs": null,
+            "total_lbs": null,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Negative Pull Up",
+            "exercise_raw": "negative pull ups",
+            "grp": 1,
+            "sets": 1,
+            "reps": 4.0,
+            "per_side_lbs": null,
+            "total_lbs": null,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Negative Pull Up",
+            "exercise_raw": "negative pull ups",
+            "grp": 2,
+            "sets": 1,
+            "reps": 4.0,
+            "per_side_lbs": null,
+            "total_lbs": null,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Australian Pull Up",
+            "exercise_raw": "Australian pull ups",
+            "grp": 1,
+            "sets": 1,
+            "reps": 8.0,
+            "per_side_lbs": null,
+            "total_lbs": null,
+            "assist_lbs": null,
+            "notes": null
+          }
+        ]
+      }
+    ]
+  }
+}

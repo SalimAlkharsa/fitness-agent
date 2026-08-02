@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Fitness Agent{% endblock %}
+{% block body %}
+<div class="topbar">
+  <span class="brand"><img src="{{ base }}/static/icons/icon.svg?v={{ v }}" alt=""><span>Fitness Agent</span></span>
+  <form method="post" action="{{ base }}/logout"><button type="submit">Sign out</button></form>
+</div>
+
+<div id="thread">
+  <div class="note">Text a workout to log it, or ask about your training.</div>
+  {# Thinking indicator — pinned to the bottom (order:9999) while a request is in flight. #}
+  <div id="thinking"><div class="typing"><i></i><i></i><i></i></div></div>
+</div>
+
+<form class="composer" id="composer" hx-post="{{ base }}/chat" hx-target="#thread" hx-swap="beforeend"
+      hx-disabled-elt="find button" hx-indicator="#thinking, #composer"
+      hx-on::after-request="if(event.detail.successful){this.reset();autogrow(this.querySelector('textarea'));
+        scrollThread(); this.querySelector('textarea').focus();}"
+      hx-on::response-error="chatError()"
+      hx-on::send-error="chatError()"
+      hx-on::after-swap="scrollThread();updateHistory()">
+  <input type="hidden" name="history" id="history-field" value="">
+  <textarea name="message" rows="1" placeholder="e.g. Squats 3x5 60lbs each side"
+            autocomplete="off" required
+            oninput="autogrow(this)"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.requestSubmit();}"></textarea>
+  <button type="submit" class="send-btn" aria-label="Send">
+    <span class="send-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+      stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span>
+    <span class="htmx-indicator"><span class="ring"></span></span>
+  </button>
+</form>
+
+<script>
+  function autogrow(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, window.innerHeight * 0.4) + 'px';
+  }
+  function scrollThread() {
+    var t = document.getElementById('thread');
+    t.scrollTop = t.scrollHeight;
+  }
+  function updateHistory() {
+    // The server tucks the updated conversation into each turn as raw JSON; the
+    // client just round-trips the latest blob (stateless server, history lives here).
+    var blobs = document.querySelectorAll('#thread script[data-history]');
+    if (blobs.length) {
+      document.getElementById('history-field').value = blobs[blobs.length - 1].textContent;
+    }
+  }
+  function chatError() {
+    var t = document.getElementById('thread');
+    var b = document.createElement('div');
+    b.className = 'bubble assistant err';
+    b.textContent = '⚠️ Something went wrong — that didn’t go through. Please try again.';
+    t.appendChild(b);
+    scrollThread();
+  }
+  // Every swap into the thread — the initial turn AND each async poll swap —
+  // re-syncs scroll + client-held history (poll swaps aren't composer-initiated,
+  // so the composer's own after-swap handler doesn't cover them).
+  document.body.addEventListener('htmx:afterSwap', function () {
+    scrollThread();
+    updateHistory();
+  });
+</script>
+{% endblock %}

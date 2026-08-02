@@ -1,0 +1,19 @@
+{# Backfill review: summary + one editable card per parsed workout + confirm-all. #}
+<div class="note">
+  {{ summary.new }} new · {{ summary.duplicates }} already logged (skipped) ·
+  {{ summary.errors }} errors
+</div>
+
+{% if cards %}
+  <form hx-post="{{ base }}/backfill/confirm-all" hx-target="this" hx-swap="outerHTML"
+        style="margin:.5rem 0;">
+    <input type="hidden" name="tokens" value="{{ tokens }}">
+    <button class="btn ok" type="submit">✅ Confirm all {{ cards|length }}</button>
+  </form>
+
+  {% for card in cards %}
+    {% include "_log_card.html" %}
+  {% endfor %}
+{% else %}
+  <div class="note">Nothing new to log.</div>
+{% endif %}

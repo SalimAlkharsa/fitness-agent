@@ -1,0 +1,62 @@
+{
+  "message": "Calf raises on smith machine elevated\n20x 75lbs on each side\n3x20x 85 lbs on each side\n\nBar rows 3x12 20 lbs on each side then 3x15 20 lbs on each side",
+  "now": "2026-07-14T20:00",
+  "expected": {
+    "workouts": [
+      {
+        "date": "2026-07-14",
+        "type": "strength",
+        "start": null,
+        "end": null,
+        "notes": null,
+        "raw_text": "Calf raises on smith machine elevated\n20x 75lbs on each side\n3x20x 85 lbs on each side\n\nBar rows 3x12 20 lbs on each side then 3x15 20 lbs on each side",
+        "sets": [
+          {
+            "exercise": "Smith Calf Raise",
+            "exercise_raw": "Calf raises on smith machine elevated",
+            "grp": 1,
+            "sets": 1,
+            "reps": 20.0,
+            "per_side_lbs": 75.0,
+            "total_lbs": 175.0,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Smith Calf Raise",
+            "exercise_raw": "Calf raises on smith machine elevated",
+            "grp": 2,
+            "sets": 3,
+            "reps": 20.0,
+            "per_side_lbs": 85.0,
+            "total_lbs": 195.0,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Bar Row",
+            "exercise_raw": "Bar rows",
+            "grp": 1,
+            "sets": 3,
+            "reps": 12.0,
+            "per_side_lbs": 20.0,
+            "total_lbs": 85.0,
+            "assist_lbs": null,
+            "notes": null
+          },
+          {
+            "exercise": "Bar Row",
+            "exercise_raw": "Bar rows",
+            "grp": 2,
+            "sets": 3,
+            "reps": 15.0,
+            "per_side_lbs": 20.0,
+            "total_lbs": 85.0,
+            "assist_lbs": null,
+            "notes": null
+          }
+        ]
+      }
+    ]
+  }
+}

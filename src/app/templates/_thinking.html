@@ -1,0 +1,10 @@
+{# Async placeholder: the slow agent runs in a background activation (dodging DO
+   Functions' ~40s sync-HTTP limit); this polls /chat/poll until the turn is ready
+   and swaps itself out for it. On the first render it also shows the user bubble;
+   on re-polls (no user_message) it's just the indicator. `n` counts polls so the
+   loop gives up after a bounded time instead of billing forever on a wedged job. #}
+{% if user_message is defined and user_message %}<div class="bubble user">{{ user_message }}</div>{% endif %}
+<div class="poll-turn" hx-post="{{ base }}/chat/poll" hx-vals='{"a": "{{ poll_token }}", "n": "{{ poll_n }}"}'
+     hx-trigger="load delay:2.5s" hx-swap="outerHTML">
+  <div class="typing"><i></i><i></i><i></i></div>
+</div>

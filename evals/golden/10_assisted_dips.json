@@ -1,0 +1,29 @@
+{
+  "message": "Dips 4x8 95lbs assist",
+  "now": "2026-07-14T20:00",
+  "expected": {
+    "workouts": [
+      {
+        "date": "2026-07-14",
+        "type": "strength",
+        "start": null,
+        "end": null,
+        "notes": null,
+        "raw_text": "Dips 4x8 95lbs assist",
+        "sets": [
+          {
+            "exercise": "Dips",
+            "exercise_raw": "Dips",
+            "grp": 1,
+            "sets": 4,
+            "reps": 8.0,
+            "per_side_lbs": null,
+            "total_lbs": null,
+            "assist_lbs": 95.0,
+            "notes": null
+          }
+        ]
+      }
+    ]
+  }
+}

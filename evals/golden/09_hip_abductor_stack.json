@@ -1,0 +1,29 @@
+{
+  "message": "Hip abductor outer 3 sets of 10 at 145lbs",
+  "now": "2026-07-14T20:00",
+  "expected": {
+    "workouts": [
+      {
+        "date": "2026-07-14",
+        "type": "strength",
+        "start": null,
+        "end": null,
+        "notes": null,
+        "raw_text": "Hip abductor outer 3 sets of 10 at 145lbs",
+        "sets": [
+          {
+            "exercise": "Hip Abduction (Out)",
+            "exercise_raw": "Hip abductor outer",
+            "grp": 1,
+            "sets": 3,
+            "reps": 10.0,
+            "per_side_lbs": null,
+            "total_lbs": 145.0,
+            "assist_lbs": null,
+            "notes": null
+          }
+        ]
+      }
+    ]
+  }
+}

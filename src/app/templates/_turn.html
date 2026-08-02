@@ -1,0 +1,22 @@
+{# One chat turn: optionally the user's message, then the agent's reply (bubbles
+   or confirm cards). The async path passes user_message=None — the bubble was
+   already shown by _thinking.html — so it renders reply-only. #}
+{% if user_message %}<div class="bubble user">{{ user_message }}</div>{% endif %}
+
+{% if cards %}
+  {% for card in cards %}
+    {% if card.kind == "log" %}
+      {% include "_log_card.html" %}
+    {% elif card.kind == "undo" %}
+      {% include "_undo_card.html" %}
+    {% endif %}
+  {% endfor %}
+{% elif result.text or result.charts %}
+  <div class="bubble assistant md">
+    {{ result.text | md | safe }}
+    {% for svg in result.charts %}<div class="chart">{{ svg | safe }}</div>{% endfor %}
+  </div>
+{% endif %}
+{# Updated client-held chat history (stateless server). Raw JSON with `<` escaped
+   server-side; the client copies textContent into the composer's hidden field. #}
+{% if history_json %}<script type="application/json" data-history>{{ history_json | safe }}</script>{% endif %}
