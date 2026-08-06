@@ -254,8 +254,17 @@ subscriber-gated), so `app/strava.py` uses the v3 REST API directly.
   re-runs idempotent.
 - **The sheet is the source of truth**: the push is best-effort and never raises —
   a Strava outage appends `Strava ✗` to the confirm message and nothing else
-  changes. Auth is a refresh-token swap per call, since serverless instances can
-  cache nothing; a rotated refresh token is logged as a warning to re-run `auth`.
+  changes.
+- **Auth** is a refresh-token swap per call, since serverless instances cache
+  nothing. Strava may rotate the refresh token and invalidates the old one
+  immediately, so the live token is kept in `_meta` (a key/value tab — no schema
+  change) with `.env` as the seed. Without that, one rotation would silently kill
+  the mirror until `auth` was re-run.
+- **Strava has no delete endpoint** and does not dedup manual activities, so a
+  double post would be unremovable via API. Nothing extra guards this: the confirm
+  path's existing replay guard returns *before* commit, so one commit = one push.
+  `undo` removes the sheet rows only — the Strava activity must be deleted in the
+  app.
 
 ## Backfill
 

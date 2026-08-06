@@ -448,7 +448,7 @@ def _confirm_log(card: PendingCard, form: dict, decision: str) -> Response:
     ):
         return render("_confirmed.html", {"message": f"Already logged as {match.workout_id}."})
     workout, summary = logflow.commit_workout(store, pw, kb_updates)
-    mirrored = strava.push_quietly(workout, summary)
+    mirrored = strava.push_quietly(workout, summary, store)
     return render("_confirmed.html", {"message": f"✅ {summary}{mirrored}"})
 
 

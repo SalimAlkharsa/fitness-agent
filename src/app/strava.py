@@ -20,9 +20,11 @@ from app.models import ParsedWorkout, Workout
 log = logging.getLogger("fitness-agent")
 
 API = "https://www.strava.com/api/v3"
-TOKEN_URL = "https://www.strava.com/oauth/token"
+TOKEN_URL = f"{API}/oauth/token"
 AUTH_URL = "https://www.strava.com/oauth/authorize"
+REDIRECT_URI = "http://localhost/exchange_token"
 SCOPE = "activity:write,activity:read_all"
+META_TOKEN_KEY = "strava_refresh_token"
 
 # our workout.type -> Strava sport_type
 SPORT_TYPES = {
@@ -54,20 +56,31 @@ def configured() -> bool:
     )
 
 
-def _access_token() -> str:
+def _access_token(store=None) -> str:
+    """Swap the refresh token for a 6h access token.
+
+    Strava may hand back a new refresh token and invalidates the old one at once,
+    so the current one lives in the sheet (`_meta`) once it has ever rotated —
+    .env only seeds it. Without a store we can only warn.
+    """
     if not configured():
         raise StravaError("STRAVA_CLIENT_ID/SECRET/REFRESH_TOKEN are not set.")
+    current = (store and store.meta_get(META_TOKEN_KEY)) or settings.strava_refresh_token
     body = _post(
         TOKEN_URL,
         {
             "client_id": settings.strava_client_id,
             "client_secret": settings.strava_client_secret,
             "grant_type": "refresh_token",
-            "refresh_token": settings.strava_refresh_token,
+            "refresh_token": current,
         },
     )
-    if body.get("refresh_token") != settings.strava_refresh_token:
-        log.warning("Strava rotated the refresh token — update STRAVA_REFRESH_TOKEN")
+    rotated = body.get("refresh_token")
+    if rotated and rotated != current:
+        if store is not None:
+            store.meta_set(META_TOKEN_KEY, rotated)
+        else:
+            log.warning("Strava rotated the refresh token — re-run `python -m app.strava auth`")
     return body["access_token"]
 
 
@@ -83,31 +96,34 @@ def _post(url: str, data: dict, token: str | None = None) -> dict:
 
 
 def _elapsed(date: str, start: str | None, end: str | None) -> int:
+    """Seconds between start and end, rolling past midnight; the default if unusable."""
     if not (start and end):
         return DEFAULT_ELAPSED
     try:
-        span = datetime.datetime.fromisoformat(f"{date}T{end}") - datetime.datetime.fromisoformat(
-            f"{date}T{start}"
-        )
+        a = datetime.datetime.fromisoformat(f"{date}T{start}")
+        b = datetime.datetime.fromisoformat(f"{date}T{end}")
     except ValueError:
         return DEFAULT_ELAPSED
-    return int(span.total_seconds()) or DEFAULT_ELAPSED
+    if b < a:
+        b += datetime.timedelta(days=1)
+    return int((b - a).total_seconds()) or DEFAULT_ELAPSED
 
 
-def push_workout(workout: Workout, description: str = "") -> int:
+def push_workout(workout: Workout, description: str = "", store=None) -> int:
     """Create the workout as a manual Strava activity. Returns the activity id."""
     payload = {
         "name": workout.notes or f"{workout.type.title()} session",
         "sport_type": SPORT_TYPES.get(workout.type.lower(), DEFAULT_SPORT),
+        # Strava reads these digits as local wall-clock time; the offset is ignored.
         "start_date_local": f"{workout.date}T{workout.start or '12:00'}:00",
         "elapsed_time": _elapsed(workout.date, workout.start, workout.end),
         "description": description,
     }
-    body = _post(f"{API}/activities", payload, _access_token())
+    body = _post(f"{API}/activities", payload, _access_token(store))
     return int(body["id"])
 
 
-def push_quietly(workout: Workout, description: str = "") -> str:
+def push_quietly(workout: Workout, description: str = "", store=None) -> str:
     """Push if configured, never raise — Strava being down must not fail the log.
 
     Returns a suffix for the confirm message ('' when Strava isn't set up).
@@ -115,7 +131,7 @@ def push_quietly(workout: Workout, description: str = "") -> str:
     if not configured():
         return ""
     try:
-        push_workout(workout, description)
+        push_workout(workout, description, store)
         return " · Strava ✓"
     except (StravaError, httpx.HTTPError, KeyError, ValueError) as e:
         log.warning("Strava push failed: %s", e)
@@ -149,10 +165,9 @@ def _to_workout(a: dict) -> ParsedWorkout:
     )
 
 
-def fetch_runs(sport: str = "Run") -> list[ParsedWorkout]:
+def fetch_runs(sport: str = "Run", store=None) -> list[ParsedWorkout]:
     """Every run in the athlete's history, oldest first."""
-    token = _access_token()
-    headers = {"Authorization": f"Bearer {token}"}
+    headers = {"Authorization": f"Bearer {_access_token(store)}"}
     runs, page = [], 1
     while True:
         r = httpx.get(
@@ -180,9 +195,10 @@ def _auth() -> None:
         print("Set STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET in .env first.")
         return
     print(
-        f"1. Open:\n   {AUTH_URL}?client_id={cid}&redirect_uri=http://localhost"
+        f"1. Open:\n   {AUTH_URL}?client_id={cid}&redirect_uri={REDIRECT_URI}"
         f"&response_type=code&approval_prompt=force&scope={SCOPE}\n"
-        "2. Approve, then copy the `code` query param from the failed redirect.\n"
+        "2. Approve. The browser lands on a page that won't load — copy the\n"
+        "   `code` query param out of the address bar. It is single-use.\n"
     )
     code = input("code: ").strip()
     body = _post(
@@ -204,7 +220,7 @@ def _backfill(do_commit: bool) -> None:
 
     store = SheetsStore.open()
     seen = committed_hashes(store)
-    runs = fetch_runs()
+    runs = fetch_runs(store=store)
     new = [w for w in runs if raw_hash(w.raw_text) not in seen]
     for pw in new:
         print(f"  {pw.date} {pw.notes}")

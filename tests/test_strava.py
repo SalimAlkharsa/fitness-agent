@@ -31,13 +31,19 @@ def creds(monkeypatch):
     )
 
 
-def _stub(monkeypatch, posts: list, activities: list | None = None, create_status: int = 201):
+def _stub(
+    monkeypatch,
+    posts: list,
+    activities: list | None = None,
+    create_status: int = 201,
+    rotate_to: str | None = None,
+):
     """Record POSTs; answer token/create/list from canned data."""
 
     def post(url, data=None, headers=None, timeout=None):
         posts.append((url, data, headers))
         if url == strava.TOKEN_URL:
-            return httpx.Response(200, json=TOKEN)
+            return httpx.Response(200, json={**TOKEN, "refresh_token": rotate_to or "rt"})
         return httpx.Response(create_status, json={"id": 987} if create_status < 300 else {})
 
     def get(url, params=None, headers=None, timeout=None):
@@ -75,6 +81,20 @@ def test_push_sends_a_manual_activity(monkeypatch, creds):
     assert "Back Squat" in payload["description"]
 
 
+@pytest.mark.parametrize(
+    "start,end,expected",
+    [
+        ("17:00", "18:30", 90 * 60),
+        ("23:00", "00:30", 90 * 60),  # rolls past midnight
+        (None, "18:30", strava.DEFAULT_ELAPSED),  # card had no times
+        ("17:00", "nonsense", strava.DEFAULT_ELAPSED),
+        ("17:00", "17:00", strava.DEFAULT_ELAPSED),
+    ],
+)
+def test_elapsed_time(start, end, expected):
+    assert strava._elapsed("2026-07-14", start, end) == expected
+
+
 def test_push_quietly_survives_a_strava_failure(monkeypatch, creds):
     _stub(monkeypatch, [], create_status=500)
     workout = Workout(
@@ -85,6 +105,20 @@ def test_push_quietly_survives_a_strava_failure(monkeypatch, creds):
         logged_at="2026-07-14T20:00",
     )
     assert "✗" in strava.push_quietly(workout)
+
+
+def test_rotated_refresh_token_is_persisted_and_reused(monkeypatch, creds):
+    """Strava invalidates the old token at once, so the new one must outlive the call."""
+    posts: list = []
+    _stub(monkeypatch, posts, rotate_to="rt2")
+    store = SheetsStore(FakeSpreadsheet())
+    store.bootstrap(kb_seed=STARTER_KB)
+
+    strava._access_token(store)
+    assert store.meta_get(strava.META_TOKEN_KEY) == "rt2"
+
+    strava._access_token(store)  # the sheet's copy wins over the stale .env one
+    assert posts[-1][1]["refresh_token"] == "rt2"
 
 
 def test_push_quietly_is_a_no_op_when_unconfigured(monkeypatch):
