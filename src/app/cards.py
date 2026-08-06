@@ -37,6 +37,8 @@ class PendingCard(BaseModel):
     """A confirm card awaiting ✅/❌.
 
     kind 'log' → a single parsed workout (+ any unknown-exercise questions).
+    kind 'edit' → the same editable form, prefilled from an already-logged
+        workout (workout_id set); confirming replaces that workout in place.
     kind 'undo' → a workout deletion.
     """
 

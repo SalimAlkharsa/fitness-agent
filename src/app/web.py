@@ -214,53 +214,72 @@ def _wid_num(wid: str) -> int:
         return 0
 
 
+def _target_workout(store, workout_id: str | None):
+    """Resolve the workout undo/edit means: the given id, or the most recent
+    (highest allocated id, robust to row reordering) if omitted."""
+    if store is None:
+        return None
+    workouts = store.read_workouts()
+    if workout_id:
+        return next((w for w in workouts if w.workout_id == workout_id), None)
+    return max(workouts, key=lambda w: _wid_num(w.workout_id)) if workouts else None
+
+
 def _build_cards(result) -> list[dict]:
     """Turn an agent pending into one or more render-ready confirm cards."""
     pending = result.pending
     cards: list[dict] = []
-    if pending.tool == "log_workout":
+    if pending.tool in ("log_workout", "edit_workout"):
         kb = _kb()
         store = get_store()
         equipment = [e.value for e in Equipment]
-        for pw in pending.args.workouts:
+        editing = pending.tool == "edit_workout"
+        workout_id = None
+        if editing:
+            target = _target_workout(store, pending.args.workout_id)
+            pws = []
+            if target is not None:
+                workout_id = target.workout_id
+                sets = [s for s in store.read_sets() if s.workout_id == workout_id]
+                pws = [logflow.workout_to_parsed(target, sets)]
+        else:
+            pws = pending.args.workouts
+        for pw in pws:
             unknowns = logflow.unknown_exercises(pw, kb)
-            # Deterministic dedup check, surfaced as an overridable card warning.
-            duplicate = dedup.find_duplicate(pw, store, kb)
+            # Deterministic dedup check (skipped for an edit — it's not a new log).
+            duplicate = None if editing else dedup.find_duplicate(pw, store, kb)
             token = sign_card(
                 PendingCard(
-                    kind="log",
+                    kind="edit" if editing else "log",
                     workout=pw,
                     unknowns=unknowns,
                     duplicate=duplicate,
+                    workout_id=workout_id,
                     source="chat",
                 )
             )
             cards.append(
                 {
-                    "kind": "log",
+                    "kind": "edit" if editing else "log",
                     "token": token,
                     "workout": pw,
                     "unknowns": {u.index: u for u in unknowns},
                     "duplicate": duplicate,
                     "equipment": equipment,
+                    "workout_id": workout_id,
                 }
             )
+        if editing and not pws:  # nothing to edit — a card that says so, no fields
+            token = sign_card(PendingCard(kind="edit"))
+            cards.append({"kind": "edit", "token": token, "workout": None})
     elif pending.tool == "undo":
         store = get_store()
-        wid = pending.args.workout_id
+        target = _target_workout(store, pending.args.workout_id)
+        wid = target.workout_id if target is not None else pending.args.workout_id
         label = ""
-        if store is not None:
-            workouts = store.read_workouts()
-            target = None
-            if wid:
-                target = next((w for w in workouts if w.workout_id == wid), None)
-            elif workouts:
-                # Most recent = highest allocated id (robust to row reordering).
-                target = max(workouts, key=lambda w: _wid_num(w.workout_id))
-            if target is not None:
-                wid = target.workout_id
-                exs = [s.exercise for s in store.read_sets() if s.workout_id == wid]
-                label = f"{target.type} {target.date}" + (f" — {', '.join(exs)}" if exs else "")
+        if target is not None:
+            exs = [s.exercise for s in store.read_sets() if s.workout_id == wid]
+            label = f"{target.type} {target.date}" + (f" — {', '.join(exs)}" if exs else "")
         token = sign_card(PendingCard(kind="undo", workout_id=wid, label=label))
         cards.append({"kind": "undo", "token": token, "workout_id": wid, "label": label})
     return cards
@@ -412,9 +431,11 @@ def confirm(request: Request) -> Response:
 
 def _confirm_log(card: PendingCard, form: dict, decision: str) -> Response:
     store = get_store()
+    editing = card.kind == "edit"
     if decision != "confirm":
-        # Discarding still saves the raw text to the inbox so nothing is lost.
-        if store is not None and card.workout is not None:
+        # Discarding a new log still saves the raw text to the inbox so nothing is
+        # lost; discarding an edit just leaves the original workout untouched.
+        if store is not None and card.workout is not None and not editing:
             store.to_inbox(
                 InboxItem(
                     timestamp=datetime.datetime.now().isoformat(timespec="seconds"),
@@ -422,7 +443,8 @@ def _confirm_log(card: PendingCard, form: dict, decision: str) -> Response:
                     error="discarded at confirm card",
                 )
             )
-        return render("_confirmed.html", {"message": "❌ Discarded — saved to inbox."})
+        msg = "Cancelled — no changes made." if editing else "❌ Discarded — saved to inbox."
+        return render("_confirmed.html", {"message": msg})
     kb = _kb()
     try:
         pw = logflow.parsed_workout_from_form(form)
@@ -431,30 +453,43 @@ def _confirm_log(card: PendingCard, form: dict, decision: str) -> Response:
         # Invalid edit → re-render the card with an inline error so the user can
         # retry (edits reset to the original parse).
         render_card = {
-            "kind": "log",
+            "kind": card.kind,
             "token": sign_card(card),
             "workout": card.workout,
             "unknowns": {u.index: u for u in card.unknowns},
             "duplicate": card.duplicate,
             "equipment": [eq.value for eq in Equipment],
+            "workout_id": card.workout_id,
         }
         return render("_log_card.html", {"card": render_card, "error": f"Couldn't save: {e}"}, 422)
     if store is None:
         return Response(body='<div class="note">No sheet configured.</div>')
+    # An edit whose target vanished (deleted meanwhile, or there was nothing to
+    # edit when the card was built) must never fall through to the log path below,
+    # which would write a fresh, mostly-blank workout under a new id instead of
+    # correcting one that's gone.
+    if editing and not any(w.workout_id == card.workout_id for w in store.read_workouts()):
+        msg = "That workout no longer exists — nothing changed."
+        return render("_confirmed.html", {"message": msg})
     # Replay guard: signed tokens aren't consumed, so a re-submitted ✅ would
     # double-log. An exact duplicate the card did NOT warn about when rendered
     # means this text was committed after the card was issued — i.e. a replay. A
     # deliberate override (warning shown, user confirmed anyway) still goes
-    # through, since its duplicate id matches the one on the card.
-    match = dedup.find_duplicate(pw, store, kb)
-    if (
-        match is not None
-        and match.kind == "exact"
-        and (card.duplicate is None or card.duplicate.workout_id != match.workout_id)
-    ):
-        return render("_confirmed.html", {"message": f"Already logged as {match.workout_id}."})
-    workout, summary = logflow.commit_workout(store, pw, kb_updates)
-    mirrored = strava.push_quietly(workout, summary, store) if card.source == "chat" else ""
+    # through, since its duplicate id matches the one on the card. Doesn't apply
+    # to an edit — it's correcting an existing row, not logging new text.
+    if not editing:
+        match = dedup.find_duplicate(pw, store, kb)
+        if (
+            match is not None
+            and match.kind == "exact"
+            and (card.duplicate is None or card.duplicate.workout_id != match.workout_id)
+        ):
+            return render("_confirmed.html", {"message": f"Already logged as {match.workout_id}."})
+    workout, summary = logflow.commit_workout(store, pw, kb_updates, workout_id=card.workout_id)
+    # An edit corrects an already-mirrored row, and Strava has no delete — so
+    # only a fresh chat log pushes.
+    mirror = card.source == "chat" and not editing
+    mirrored = strava.push_quietly(workout, summary, store) if mirror else ""
     return render("_confirmed.html", {"message": f"✅ {summary}{mirrored}"})
 
 

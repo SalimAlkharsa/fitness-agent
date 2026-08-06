@@ -120,6 +120,38 @@ UNDO = Tool(
 )
 
 
+# --- edit_workout (confirm-gated) ---
+
+
+class EditWorkoutArgs(BaseModel):
+    workout_id: str | None = Field(
+        default=None,
+        description="the workout to edit; omit to target the most recent one. "
+        "Look it up with query_history first if it isn't the most recent.",
+    )
+
+
+def _edit_workout_handler(args: BaseModel, ctx: ToolContext) -> object:
+    raise RuntimeError("edit_workout is confirm-gated; the change happens on confirm")
+
+
+EDIT_WORKOUT = Tool(
+    name="edit_workout",
+    description=(
+        "Correct a previously logged workout's weight, reps, sets, or date. "
+        "Omit workout_id to target the most recent one. Confirm-gated: opens the "
+        "same editable card as logging, pre-filled with the workout's current "
+        "values, so the user corrects the exact field rather than you re-guessing it. "
+        "Renaming the exercise itself isn't reliable here — use log_workout + undo "
+        "for that instead."
+    ),
+    args_model=EditWorkoutArgs,
+    handler=_edit_workout_handler,
+    confirm_required=True,
+    summarize=lambda a: "Edit a workout",
+)
+
+
 # --- query_history (read) ---
 
 
@@ -379,4 +411,5 @@ def default_tools() -> list[Tool]:
         PERSONAL_RECORDS,
         MAKE_CHART,
         UNDO,
+        EDIT_WORKOUT,
     ]

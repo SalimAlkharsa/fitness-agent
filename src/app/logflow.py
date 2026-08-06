@@ -123,15 +123,46 @@ def _final_total(sg: ParsedSetGroup, entry: KBEntry | None) -> float | None:
     return sg.total_lbs
 
 
+def workout_to_parsed(workout: Workout, sets: list[SetGroup]) -> ParsedWorkout:
+    """Rehydrate an already-committed workout + its sets into an editable
+    ParsedWorkout, so the edit_workout confirm card can prefill with real data."""
+    return ParsedWorkout(
+        date=workout.date,
+        type=workout.type,
+        start=workout.start,
+        end=workout.end,
+        notes=workout.notes,
+        raw_text=workout.raw_text,
+        sets=[
+            ParsedSetGroup(
+                exercise=s.exercise,
+                exercise_raw=s.exercise_raw,
+                grp=s.grp,
+                sets=s.sets,
+                reps=s.reps,
+                per_side_lbs=s.per_side_lbs,
+                total_lbs=s.total_lbs,
+                assist_lbs=s.assist_lbs,
+                notes=s.notes,
+            )
+            for s in sets
+        ],
+    )
+
+
 def commit_workout(
     store,
     pw: ParsedWorkout,
     kb_updates: list[KBEntry] | None = None,
+    workout_id: str | None = None,
 ) -> tuple[Workout, str]:
-    """Apply any KB learning, allocate an id, append the workout + its sets.
+    """Apply any KB learning, then append the workout + its sets.
 
-    Returns the committed Workout and a human summary line. Raises nothing beyond
-    what the store raises; callers validate `pw` (Pydantic) before calling.
+    `workout_id=None` allocates a fresh id (a new log). Passing an existing id
+    replaces that workout in place (an edit): its old rows are deleted first, so
+    the id and row count don't drift. Returns the committed Workout and a human
+    summary line. Raises nothing beyond what the store raises; callers validate
+    `pw` (Pydantic) before calling.
     """
     if kb_updates:
         for entry in kb_updates:
@@ -139,7 +170,8 @@ def commit_workout(
 
     kb = store.kb_entries()
     kbm = _kb_map(kb)
-    wid = store.next_workout_id()
+    editing = workout_id is not None
+    wid = workout_id if editing else store.next_workout_id()
     now = datetime.datetime.now().isoformat(timespec="minutes")
 
     workout = Workout(
@@ -176,9 +208,11 @@ def commit_workout(
             )
         )
 
+    if editing:
+        store.delete_workout(wid)
     store.append_workout(workout)
     store.append_sets(sets)
-    return workout, summarize_committed(workout, sets)
+    return workout, summarize_committed(workout, sets, verb="Updated" if editing else "Logged")
 
 
 def _fs(form, key: str) -> str | None:
@@ -268,11 +302,11 @@ def kb_updates_from_form(form, unknowns: list[UnknownExercise], kb: list[KBEntry
     return updates
 
 
-def summarize_committed(workout: Workout, sets: list[SetGroup]) -> str:
+def summarize_committed(workout: Workout, sets: list[SetGroup], verb: str = "Logged") -> str:
     if not sets:
-        return f"Logged {workout.workout_id}: {workout.type} on {workout.date}."
+        return f"{verb} {workout.workout_id}: {workout.type} on {workout.date}."
     parts = []
     for sg in sets:
         load = f"@{sg.total_lbs:g}" if sg.total_lbs is not None else ""
         parts.append(f"{sg.exercise} {sg.sets}x{sg.reps:g}{load}")
-    return f"Logged {workout.workout_id}: " + "; ".join(parts)
+    return f"{verb} {workout.workout_id}: " + "; ".join(parts)

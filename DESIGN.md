@@ -20,7 +20,7 @@ were later revised. For what the project *is*, start with the
 | Model | `nvidia/nemotron-3-ultra-550b-a55b:free` via OpenRouter. The choice was gated on data, not vibes: an eval harness scored field accuracy against the golden set, with a ≥90% bar and a cheap paid fallback (Haiku-class) ready if it missed. It scored 94%, and 97.7% once the parsing skill was added — see [`evals/reports/DECISION.md`](evals/reports/DECISION.md). |
 | Agent | Hand-rolled linear tool-dispatch loop (max 6 steps, `MAX_STEPS`), no framework. The model picks from a fixed menu of typed tools and never runs code. Native tool-calling first (proper `tool` roles); JSON-mode fallback by config. Pydantic validates every call; write-tool validation errors are fed back for up to 2 retries then the raw message goes to `inbox`, read-tool errors just feed back. Repeat-call + unknown-tool guards stop a stuck model from burning the free-tier quota. |
 | Skills | Markdown files in `skills/`, loaded on demand via a `read_skill` tool. System prompt carries only a one-line index of each. |
-| Write flow | Confirm-first. Write tools (`log_workout`, `update_kb`) render an editable confirm card; nothing hits the sheet until ✅. Read tools run freely. |
+| Write flow | Confirm-first. Write tools (`log_workout`, `edit_workout`, `undo`, `update_kb`) render an editable confirm card; nothing hits the sheet until ✅. `edit_workout` reuses the log card, prefilled from the target workout, and replaces it in place on confirm. Read tools run freely. |
 | Exercise KB | `exercise_kb` sheet tab. Unknown exercise name → confirm card asks "same as X, or new?" and the answer is saved. Learning requires no redeploy. |
 
 ## Sheet schema (SCHEMA_VERSION = 1)
@@ -87,6 +87,9 @@ Sheets has no ALTER TABLE, so:
 - Data is tiny: full-tab rewrite migrations (read → transform in Python → clear →
   write) are the standard pattern.
 - Nuclear option: replay every `raw_text` through the parser into fresh tabs.
+  Caveat: `edit_workout` (below) keeps the workout's original `raw_text` and
+  overwrites `logged_at`, so a replay would silently revert any hand-edit back
+  to the original parse — acceptable since edits are rare, manual corrections.
 
 ## Async chat (serverless, revised 2026-07-24)
 
@@ -142,6 +145,9 @@ message → loop (max MAX_STEPS = 6 steps) {
     log_workout(json)       → ParseResult → Pydantic validate → confirm card    [confirm]
                               per workout → on ✅ append workouts+sets (KB learns)
     undo(workout_id?)       → delete a workout + its sets                       [confirm]
+    edit_workout(workout_id?) → same editable card as log_workout, prefilled    [confirm]
+                              from the workout's current values; on ✅ replaces
+                              it in place (same id, old rows deleted first)
     <plain text>            → final answer
 } until a final answer / a confirm short-circuit / a guard stop
 ```
