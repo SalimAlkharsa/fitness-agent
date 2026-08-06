@@ -90,6 +90,7 @@ def test_push_sends_a_manual_activity(monkeypatch, creds):
         ("23:00", "00:30", 90 * 60),  # rolls past midnight
         (None, "18:30", strava.DEFAULT_ELAPSED),  # card had no times
         ("17:00", "nonsense", strava.DEFAULT_ELAPSED),  # nothing validates these upstream
+        ("7:30", "9:00", 90 * 60),  # free-text card, no leading zero
         ("5pm", "18:30", strava.DEFAULT_ELAPSED),
         ("17:00", "17:00", strava.DEFAULT_ELAPSED),
     ],

@@ -99,9 +99,12 @@ def _post(url: str, data: dict, token: str | None = None) -> dict:
 def _clock(value: str | None) -> str | None:
     """HH:MM, or None if the card's time isn't one. Nothing validates it upstream,
     and a stray '5pm' would otherwise 400 the whole activity."""
+    value = (value or "").strip()
+    if len(value) == 4 and value[1] == ":":  # the card is free text: '7:30'
+        value = "0" + value
     try:
         return datetime.time.fromisoformat(value).strftime("%H:%M")
-    except (TypeError, ValueError):
+    except ValueError:
         return None
 
 
