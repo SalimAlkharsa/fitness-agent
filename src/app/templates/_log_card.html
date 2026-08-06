@@ -1,12 +1,16 @@
-{# Editable confirm card for ONE parsed workout. Fields are editable; on ✅ the
-   form re-POSTs to /confirm which re-validates through Pydantic before writing. #}
+{# Editable confirm card for ONE parsed workout — a new log, or (card.workout_id
+   set) an edit of an already-logged one. Fields are editable; on ✅ the form
+   re-POSTs to /confirm which re-validates through Pydantic before writing. #}
 {% set pw = card.workout %}
 <form class="card" id="card-{{ card.token[-12:] }}"
       hx-post="{{ base }}/confirm" hx-target="#card-{{ card.token[-12:] }}" hx-swap="outerHTML">
   <input type="hidden" name="token" value="{{ card.token }}">
+  {% if not pw %}
+  <div class="meta">No workout found to edit.</div>
+  {% else %}
   <input type="hidden" name="w-raw" value="{{ pw.raw_text }}">
   <input type="hidden" name="n_sets" value="{{ pw.sets|length }}">
-  <h4>Log this workout?</h4>
+  <h4>{% if card.workout_id %}Save changes to {{ card.workout_id }}?{% else %}Log this workout?{% endif %}</h4>
   {% if error %}<div class="error" style="margin-bottom:.4rem">{{ error }}</div>{% endif %}
   {% if card.duplicate %}
   <div class="dupe-warn" role="alert"
@@ -83,7 +87,8 @@
   {% endfor %}
 
   <div class="card-actions">
-    <button class="btn ok" type="submit" name="decision" value="confirm">✅ Log it</button>
-    <button class="btn bad" type="submit" name="decision" value="discard">❌ Discard</button>
+    <button class="btn ok" type="submit" name="decision" value="confirm">✅ {{ "Save" if card.workout_id else "Log it" }}</button>
+    <button class="btn bad" type="submit" name="decision" value="discard">❌ {{ "Cancel" if card.workout_id else "Discard" }}</button>
   </div>
+  {% endif %}
 </form>

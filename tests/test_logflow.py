@@ -13,6 +13,7 @@ from app.logflow import (
     kb_updates_from_form,
     parsed_workout_from_form,
     unknown_exercises,
+    workout_to_parsed,
 )
 from app.models import Equipment, ParsedSetGroup, ParsedWorkout
 from app.prompt import resolve_exercise
@@ -156,6 +157,31 @@ def test_undo_removes_workout_and_sets(store: SheetsStore):
     assert deleted == 2  # 1 workout row + 1 set row
     assert {w.workout_id for w in store.read_workouts()} == {w2.workout_id}
     assert all(s.workout_id == w2.workout_id for s in store.read_sets())
+
+
+# --- edit (rehydrate -> correct a field -> replace in place) ---
+
+
+def test_edit_workout_replaces_in_place(store: SheetsStore):
+    other, _ = commit_workout(store, _squat_workout())  # a second workout, untouched
+    original, _ = commit_workout(store, _squat_workout())
+
+    # Rehydrate exactly what an edit_workout confirm card would prefill...
+    original_sets = [s for s in store.read_sets() if s.workout_id == original.workout_id]
+    pw = workout_to_parsed(original, original_sets)
+    assert pw.sets[0].total_lbs == 165  # matches the original commit
+
+    # ...the user corrects the per-side weight (as if editing the card's input)...
+    pw.sets[0].per_side_lbs = 70
+    pw.sets[0].total_lbs = 165  # stale until recomputed at commit, same as a fresh log
+    workout, summary = commit_workout(store, pw, workout_id=original.workout_id)
+
+    assert workout.workout_id == original.workout_id and "Updated" in summary
+    ws = store.read_workouts()
+    assert {w.workout_id for w in ws} == {other.workout_id, original.workout_id}  # no new row
+    edited_sets = [s for s in store.read_sets() if s.workout_id == original.workout_id]
+    assert len(edited_sets) == 1  # old set row replaced, not duplicated
+    assert edited_sets[0].total_lbs == 70 * 2 + 45  # recomputed from the corrected per-side
 
 
 # --- form parsing (feeds the confirm card) ---
