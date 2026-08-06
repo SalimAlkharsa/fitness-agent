@@ -32,3 +32,7 @@ packages:
           # come from the runtime-injected __OW_API_HOST/__OW_NAMESPACE; the key
           # is NOT injected (__OW_API_KEY is withheld), so pass it explicitly.
           DO_FN_AUTH: '${DO_FN_AUTH}'
+          # Strava mirror — optional; `unset` means the feature stays off.
+          STRAVA_CLIENT_ID: '${STRAVA_CLIENT_ID}'
+          STRAVA_CLIENT_SECRET: '${STRAVA_CLIENT_SECRET}'
+          STRAVA_REFRESH_TOKEN: '${STRAVA_REFRESH_TOKEN}'

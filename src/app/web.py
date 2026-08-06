@@ -29,7 +29,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 from pydantic import ValidationError
 
-from app import SCHEMA_VERSION, dedup, dofn, logflow
+from app import SCHEMA_VERSION, dedup, dofn, logflow, strava
 from app.agent import MAX_HISTORY_MESSAGES, Agent, ChatSession
 from app.auth import COOKIE_MAX_AGE, COOKIE_NAME, cookie_valid, make_cookie, passphrase_ok
 from app.cards import (
@@ -447,8 +447,9 @@ def _confirm_log(card: PendingCard, form: dict, decision: str) -> Response:
         and (card.duplicate is None or card.duplicate.workout_id != match.workout_id)
     ):
         return render("_confirmed.html", {"message": f"Already logged as {match.workout_id}."})
-    _workout, summary = logflow.commit_workout(store, pw, kb_updates)
-    return render("_confirmed.html", {"message": f"✅ {summary}"})
+    workout, summary = logflow.commit_workout(store, pw, kb_updates)
+    mirrored = strava.push_quietly(workout, summary)
+    return render("_confirmed.html", {"message": f"✅ {summary}{mirrored}"})
 
 
 def _confirm_undo(card: PendingCard, decision: str) -> Response:

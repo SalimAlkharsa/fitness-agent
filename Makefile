@@ -46,6 +46,7 @@ stage:
 deploy: stage
 	set -a && . ./.env && set +a && \
 	export BASE_PATH="$${BASE_PATH:-/}" MODEL="$${MODEL:-nvidia/nemotron-3-ultra-550b-a55b:free}" TOOL_MODE="$${TOOL_MODE:-native}" && \
+	export STRAVA_CLIENT_ID="$${STRAVA_CLIENT_ID:-unset}" STRAVA_CLIENT_SECRET="$${STRAVA_CLIENT_SECRET:-unset}" STRAVA_REFRESH_TOKEN="$${STRAVA_REFRESH_TOKEN:-unset}" && \
 	doctl serverless deploy . --remote-build
 
 url:
