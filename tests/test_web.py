@@ -393,6 +393,19 @@ def test_edit_workout_with_nothing_to_edit_is_a_no_op():
     assert "<button" not in r.text  # no ✅/❌ offered — nothing to confirm or discard
 
 
+def test_confirming_a_stale_edit_card_does_not_resurrect_a_deleted_workout():
+    store = _inject_store()
+    workout, _ = logflow.commit_workout(store, _pending_result().pending.args.workouts[0])
+    client = _client(_edit_pending_result())
+    _login(client)
+    token = _extract_token(client.post("/chat", data={"message": "fix my squat"}).text)
+
+    store.delete_workout(workout.workout_id)  # deleted meanwhile, e.g. via undo
+    r = client.post("/confirm", data=_card_form(token, "confirm"))
+    assert "no longer exists" in r.text
+    assert store.read_workouts() == []  # stays deleted, not resurrected
+
+
 # --- backfill review ---
 
 
