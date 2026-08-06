@@ -38,6 +38,7 @@ SPORT_TYPES = {
     "yoga": "Yoga",
 }
 DEFAULT_SPORT = "Workout"
+RUN_TYPES = ("Run", "TrailRun", "VirtualRun")
 DEFAULT_ELAPSED = 3600  # no start/end on the card → call it an hour
 METERS_PER_MILE = 1609.344
 _TIMEOUT = 20.0
@@ -95,15 +96,22 @@ def _post(url: str, data: dict, token: str | None = None) -> dict:
 # --- push: workout -> Strava activity ---
 
 
+def _clock(value: str | None) -> str | None:
+    """HH:MM, or None if the card's time isn't one. Nothing validates it upstream,
+    and a stray '5pm' would otherwise 400 the whole activity."""
+    try:
+        return datetime.time.fromisoformat(value).strftime("%H:%M")
+    except (TypeError, ValueError):
+        return None
+
+
 def _elapsed(date: str, start: str | None, end: str | None) -> int:
     """Seconds between start and end, rolling past midnight; the default if unusable."""
+    start, end = _clock(start), _clock(end)
     if not (start and end):
         return DEFAULT_ELAPSED
-    try:
-        a = datetime.datetime.fromisoformat(f"{date}T{start}")
-        b = datetime.datetime.fromisoformat(f"{date}T{end}")
-    except ValueError:
-        return DEFAULT_ELAPSED
+    a = datetime.datetime.fromisoformat(f"{date}T{start}")
+    b = datetime.datetime.fromisoformat(f"{date}T{end}")
     if b < a:
         b += datetime.timedelta(days=1)
     return int((b - a).total_seconds()) or DEFAULT_ELAPSED
@@ -115,7 +123,7 @@ def push_workout(workout: Workout, description: str = "", store=None) -> int:
         "name": workout.notes or f"{workout.type.title()} session",
         "sport_type": SPORT_TYPES.get(workout.type.lower(), DEFAULT_SPORT),
         # Strava reads these digits as local wall-clock time; the offset is ignored.
-        "start_date_local": f"{workout.date}T{workout.start or '12:00'}:00",
+        "start_date_local": f"{workout.date}T{_clock(workout.start) or '12:00'}:00",
         "elapsed_time": _elapsed(workout.date, workout.start, workout.end),
         "description": description,
     }
@@ -165,7 +173,7 @@ def _to_workout(a: dict) -> ParsedWorkout:
     )
 
 
-def fetch_runs(sport: str = "Run", store=None) -> list[ParsedWorkout]:
+def fetch_runs(sports: tuple[str, ...] = RUN_TYPES, store=None) -> list[ParsedWorkout]:
     """Every run in the athlete's history, oldest first."""
     headers = {"Authorization": f"Bearer {_access_token(store)}"}
     runs, page = [], 1
@@ -182,7 +190,7 @@ def fetch_runs(sport: str = "Run", store=None) -> list[ParsedWorkout]:
         # Manual activities are skipped: the ones we push back are manual, and
         # re-importing them would duplicate the session we logged in chat.
         runs += [
-            _to_workout(a) for a in batch if a.get("sport_type") == sport and not a.get("manual")
+            _to_workout(a) for a in batch if a.get("sport_type") in sports and not a.get("manual")
         ]
         if len(batch) < _PAGE:
             return sorted(runs, key=lambda w: (w.date, w.start or ""))

@@ -250,7 +250,8 @@ subscriber-gated), so `app/strava.py` uses the v3 REST API directly.
   the card carries a signed `source` and only `chat` mirrors — otherwise pasting a
   two-year dump would publish all of it. The CLI paths don't push at all.
 - **In**: `python -m app.strava backfill [--commit]` pulls `GET /athlete/activities`
-  and maps each run to a `type=run` workout with distance/time/pace in `notes` —
+  and maps each run (`Run`/`TrailRun`/`VirtualRun`) to a `type=run` workout with
+  distance/time/pace in `notes` —
   no LLM, no schema change (a run is a session with no sets, like basketball).
   `raw_text` is `strava:<activity_id> …`, so the existing raw-text hash dedup makes
   re-runs idempotent. Manual activities are skipped: the runs *we* push are manual,

@@ -227,7 +227,13 @@ def _build_cards(result) -> list[dict]:
             # Deterministic dedup check, surfaced as an overridable card warning.
             duplicate = dedup.find_duplicate(pw, store, kb)
             token = sign_card(
-                PendingCard(kind="log", workout=pw, unknowns=unknowns, duplicate=duplicate)
+                PendingCard(
+                    kind="log",
+                    workout=pw,
+                    unknowns=unknowns,
+                    duplicate=duplicate,
+                    source="chat",
+                )
             )
             cards.append(
                 {
@@ -497,9 +503,7 @@ def backfill_run(request: Request) -> Response:
     for item in items:
         for pw in item.workouts:
             unknowns = logflow.unknown_exercises(pw, kb)
-            token = sign_card(
-                PendingCard(kind="log", workout=pw, unknowns=unknowns, source="backfill")
-            )
+            token = sign_card(PendingCard(kind="log", workout=pw, unknowns=unknowns))
             tokens.append(token)
             cards.append(
                 {

@@ -89,7 +89,8 @@ def test_push_sends_a_manual_activity(monkeypatch, creds):
         ("17:00", "18:30", 90 * 60),
         ("23:00", "00:30", 90 * 60),  # rolls past midnight
         (None, "18:30", strava.DEFAULT_ELAPSED),  # card had no times
-        ("17:00", "nonsense", strava.DEFAULT_ELAPSED),
+        ("17:00", "nonsense", strava.DEFAULT_ELAPSED),  # nothing validates these upstream
+        ("5pm", "18:30", strava.DEFAULT_ELAPSED),
         ("17:00", "17:00", strava.DEFAULT_ELAPSED),
     ],
 )
@@ -168,11 +169,21 @@ def test_backfill_maps_runs_and_commits_them_once(monkeypatch, creds):
             "manual": True,
             "start_date_local": "2026-07-06T06:00:00Z",
         },
+        {
+            "id": 558,
+            "name": "Trail",
+            "sport_type": "TrailRun",
+            "distance": 1609.344,
+            "moving_time": 600,
+            "elapsed_time": 600,
+            "start_date_local": "2026-07-07T06:00:00Z",
+        },
     ]
     _stub(monkeypatch, [], activities=activities)
 
     runs = strava.fetch_runs()
-    assert len(runs) == 1  # the ride and our own manual echo are filtered out
+    # the ride and our own manual echo are out; a trail run counts as a run
+    assert [r.date for r in runs] == ["2026-07-04", "2026-07-07"]
     run = runs[0]
     assert (run.date, run.type, run.start, run.end) == ("2026-07-04", "run", "06:30", "07:11")
     assert run.notes == "5.00 mi in 40:00, 8:00/mi"
