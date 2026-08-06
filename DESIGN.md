@@ -87,6 +87,9 @@ Sheets has no ALTER TABLE, so:
 - Data is tiny: full-tab rewrite migrations (read → transform in Python → clear →
   write) are the standard pattern.
 - Nuclear option: replay every `raw_text` through the parser into fresh tabs.
+  Caveat: `edit_workout` (below) keeps the workout's original `raw_text` and
+  overwrites `logged_at`, so a replay would silently revert any hand-edit back
+  to the original parse — acceptable since edits are rare, manual corrections.
 
 ## Async chat (serverless, revised 2026-07-24)
 

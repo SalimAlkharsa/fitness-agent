@@ -430,7 +430,7 @@ def confirm(request: Request) -> Response:
 
 def _confirm_log(card: PendingCard, form: dict, decision: str) -> Response:
     store = get_store()
-    editing = bool(card.workout_id)
+    editing = card.kind == "edit"
     if decision != "confirm":
         # Discarding a new log still saves the raw text to the inbox so nothing is
         # lost; discarding an edit just leaves the original workout untouched.
@@ -463,6 +463,13 @@ def _confirm_log(card: PendingCard, form: dict, decision: str) -> Response:
         return render("_log_card.html", {"card": render_card, "error": f"Couldn't save: {e}"}, 422)
     if store is None:
         return Response(body='<div class="note">No sheet configured.</div>')
+    # An edit whose target vanished (deleted meanwhile, or there was nothing to
+    # edit when the card was built) must never fall through to the log path below,
+    # which would write a fresh, mostly-blank workout under a new id instead of
+    # correcting one that's gone.
+    if editing and not any(w.workout_id == card.workout_id for w in store.read_workouts()):
+        msg = "That workout no longer exists — nothing changed."
+        return render("_confirmed.html", {"message": msg})
     # Replay guard: signed tokens aren't consumed, so a re-submitted ✅ would
     # double-log. An exact duplicate the card did NOT warn about when rendered
     # means this text was committed after the card was issued — i.e. a replay. A

@@ -178,7 +178,8 @@ def test_edit_workout_replaces_in_place(store: SheetsStore):
 
     assert workout.workout_id == original.workout_id and "Updated" in summary
     ws = store.read_workouts()
-    assert {w.workout_id for w in ws} == {other.workout_id, original.workout_id}  # no new row
+    # len() first: a set of ids alone can't tell one row from a duplicate.
+    assert len(ws) == 2 and {w.workout_id for w in ws} == {other.workout_id, original.workout_id}
     edited_sets = [s for s in store.read_sets() if s.workout_id == original.workout_id]
     assert len(edited_sets) == 1  # old set row replaced, not duplicated
     assert edited_sets[0].total_lbs == 70 * 2 + 45  # recomputed from the corrected per-side

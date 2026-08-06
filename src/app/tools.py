@@ -138,10 +138,12 @@ def _edit_workout_handler(args: BaseModel, ctx: ToolContext) -> object:
 EDIT_WORKOUT = Tool(
     name="edit_workout",
     description=(
-        "Correct a previously logged workout (weight, reps, date, exercise, ...). "
+        "Correct a previously logged workout's weight, reps, sets, or date. "
         "Omit workout_id to target the most recent one. Confirm-gated: opens the "
         "same editable card as logging, pre-filled with the workout's current "
-        "values, so the user corrects the exact field rather than you re-guessing it."
+        "values, so the user corrects the exact field rather than you re-guessing it. "
+        "Renaming the exercise itself isn't reliable here — use log_workout + undo "
+        "for that instead."
     ),
     args_model=EditWorkoutArgs,
     handler=_edit_workout_handler,

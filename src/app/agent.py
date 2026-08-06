@@ -148,6 +148,9 @@ def build_system_prompt(
         "How to work: each turn, either call ONE tool or give the user your final "
         "answer in plain text. Call a tool when logging or querying; when you have "
         "what you need, answer directly. Don't repeat the same tool call.",
+        "Correcting something already logged (wrong weight/reps/date on a past entry) "
+        "→ edit_workout, never log_workout — log_workout would create a duplicate "
+        "instead of fixing the existing row.",
         "",
         "Answering questions (pick the ONE tool that fits — you cannot run code):",
         "- Orient with describe_data when unsure what's logged (exercises, date range).",
