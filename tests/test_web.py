@@ -28,8 +28,10 @@ import app.web as web  # noqa: E402
 auth.settings = config.settings
 web.settings = config.settings
 
+from app import logflow  # noqa: E402
 from app.agent import AgentResult, ChatSession, PendingConfirmation  # noqa: E402
 from app.models import ParsedSetGroup, ParsedWorkout, ParseResult  # noqa: E402
+from app.tools import EditWorkoutArgs  # noqa: E402
 from tests.webclient import MiniClient  # noqa: E402
 
 
@@ -352,6 +354,56 @@ def test_replayed_or_tampered_card_cannot_double_log():
     r_bad = client.post("/confirm", data=_card_form(token[:-4] + "0000", "confirm"))
     assert "expired" in r_bad.text.lower()
     assert len(store.read_workouts()) == 1
+
+
+def _edit_pending_result() -> AgentResult:
+    return AgentResult(
+        pending=PendingConfirmation(
+            tool="edit_workout", args=EditWorkoutArgs(workout_id=None), summary="Edit a workout"
+        )
+    )
+
+
+def test_edit_workout_prefills_and_updates_in_place():
+    store = _inject_store()
+    workout, _ = logflow.commit_workout(store, _pending_result().pending.args.workouts[0])
+    client = _client(_edit_pending_result())
+    _login(client)
+
+    r = client.post("/chat", data={"message": "fix my squat, it was 70 per side"})
+    assert f"Save changes to {workout.workout_id}?" in r.text
+    assert 'value="60"' in r.text  # prefilled with the ORIGINAL per-side weight, not a re-parse
+
+    form = _card_form(_extract_token(r.text), "confirm")
+    form["s0-per_side"] = "70"
+    r2 = client.post("/confirm", data=form)
+    assert f"Updated {workout.workout_id}" in r2.text
+    workouts = store.read_workouts()
+    assert len(workouts) == 1 and workouts[0].workout_id == workout.workout_id  # no new row
+    sets = store.read_sets()
+    assert len(sets) == 1 and sets[0].total_lbs == 70 * 2 + 45  # recomputed from the correction
+
+
+def test_edit_workout_with_nothing_to_edit_is_a_no_op():
+    _inject_store()  # empty — nothing logged yet
+    client = _client(_edit_pending_result())
+    _login(client)
+    r = client.post("/chat", data={"message": "fix my squat"})
+    assert "No workout found to edit" in r.text
+    assert "<button" not in r.text  # no ✅/❌ offered — nothing to confirm or discard
+
+
+def test_confirming_a_stale_edit_card_does_not_resurrect_a_deleted_workout():
+    store = _inject_store()
+    workout, _ = logflow.commit_workout(store, _pending_result().pending.args.workouts[0])
+    client = _client(_edit_pending_result())
+    _login(client)
+    token = _extract_token(client.post("/chat", data={"message": "fix my squat"}).text)
+
+    store.delete_workout(workout.workout_id)  # deleted meanwhile, e.g. via undo
+    r = client.post("/confirm", data=_card_form(token, "confirm"))
+    assert "no longer exists" in r.text
+    assert store.read_workouts() == []  # stays deleted, not resurrected
 
 
 # --- backfill review ---
