@@ -5,7 +5,7 @@
 
 {% if cards %}
   {% for card in cards %}
-    {% if card.kind == "log" or card.kind == "edit" %}
+    {% if card.kind == "log" %}
       {% include "_log_card.html" %}
     {% elif card.kind == "undo" %}
       {% include "_undo_card.html" %}
