@@ -1,9 +1,8 @@
 """Strava sync — push confirmed workouts out, pull runs back in.
 
-Strava's MCP connector is read-only, so this talks to the v3 REST API directly.
-Auth is a one-off `python -m app.strava auth` that yields a refresh token; every
-call swaps that for a short-lived access token (nothing is cached — the
-serverless instances share no state).
+Strava's MCP connector is read-only, so this uses the v3 REST API. `python -m
+app.strava auth` yields a refresh token; every call swaps it for a short-lived
+access token (serverless instances cache nothing).
 """
 
 from __future__ import annotations
@@ -26,8 +25,7 @@ REDIRECT_URI = "http://localhost/exchange_token"
 SCOPE = "activity:write,activity:read_all"
 META_TOKEN_KEY = "strava_refresh_token"
 
-# our workout.type -> Strava sport_type
-SPORT_TYPES = {
+SPORT_TYPES = {  # our workout.type -> Strava sport_type
     "strength": "WeightTraining",
     "basketball": "Basketball",
     "run": "Run",
@@ -37,7 +35,6 @@ SPORT_TYPES = {
     "swim": "Swim",
     "yoga": "Yoga",
 }
-DEFAULT_SPORT = "Workout"
 RUN_TYPES = ("Run", "TrailRun", "VirtualRun")
 DEFAULT_ELAPSED = 3600  # no start/end on the card → call it an hour
 METERS_PER_MILE = 1609.344
@@ -50,26 +47,29 @@ class StravaError(RuntimeError):
 
 
 def configured() -> bool:
-    return bool(
-        settings.strava_client_id
-        and settings.strava_client_secret
-        and settings.strava_refresh_token
+    return all(
+        (settings.strava_client_id, settings.strava_client_secret, settings.strava_refresh_token)
     )
 
 
-def _access_token(store=None) -> str:
-    """Swap the refresh token for a 6h access token.
+def _call(method: str, url: str, token: str | None = None, **kw):
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    r = httpx.request(method, url, headers=headers, timeout=_TIMEOUT, **kw)
+    if r.status_code >= 300:
+        raise StravaError(f"{method} {url} → {r.status_code}: {r.text[:150]}")
+    return r.json()
 
-    Strava may hand back a new refresh token and invalidates the old one at once,
-    so the current one lives in the sheet (`_meta`) once it has ever rotated —
-    .env only seeds it. Without a store we can only warn.
-    """
+
+def _access_token(store=None) -> str:
+    """Strava may rotate the refresh token and kills the old one at once, so the
+    live one is kept in the sheet once it has rotated; .env only seeds it."""
     if not configured():
         raise StravaError("STRAVA_CLIENT_ID/SECRET/REFRESH_TOKEN are not set.")
     current = (store and store.meta_get(META_TOKEN_KEY)) or settings.strava_refresh_token
-    body = _post(
+    body = _call(
+        "POST",
         TOKEN_URL,
-        {
+        data={
             "client_id": settings.strava_client_id,
             "client_secret": settings.strava_client_secret,
             "grant_type": "refresh_token",
@@ -85,22 +85,13 @@ def _access_token(store=None) -> str:
     return body["access_token"]
 
 
-def _post(url: str, data: dict, token: str | None = None) -> dict:
-    headers = {"Authorization": f"Bearer {token}"} if token else {}
-    r = httpx.post(url, data=data, headers=headers, timeout=_TIMEOUT)
-    if r.status_code >= 300:
-        raise StravaError(f"POST {url} → {r.status_code}: {r.text[:150]}")
-    return r.json()
-
-
 # --- push: workout -> Strava activity ---
 
 
 def _clock(value: str | None) -> str | None:
-    """HH:MM, or None if the card's time isn't one. Nothing validates it upstream,
-    and a stray '5pm' would otherwise 400 the whole activity."""
+    """HH:MM, or None — the card's time fields are free text and unvalidated."""
     value = (value or "").strip()
-    if len(value) == 4 and value[1] == ":":  # the card is free text: '7:30'
+    if len(value) == 4 and value[1] == ":":  # '7:30'
         value = "0" + value
     try:
         return datetime.time.fromisoformat(value).strftime("%H:%M")
@@ -109,42 +100,37 @@ def _clock(value: str | None) -> str | None:
 
 
 def _elapsed(date: str, start: str | None, end: str | None) -> int:
-    """Seconds between start and end, rolling past midnight; the default if unusable."""
     start, end = _clock(start), _clock(end)
     if not (start and end):
         return DEFAULT_ELAPSED
     a = datetime.datetime.fromisoformat(f"{date}T{start}")
     b = datetime.datetime.fromisoformat(f"{date}T{end}")
     if b < a:
-        b += datetime.timedelta(days=1)
+        b += datetime.timedelta(days=1)  # crossed midnight
     return int((b - a).total_seconds()) or DEFAULT_ELAPSED
 
 
 def push_workout(workout: Workout, description: str = "", store=None) -> int:
-    """Create the workout as a manual Strava activity. Returns the activity id."""
+    """Create the workout as a manual Strava activity; returns the activity id."""
     payload = {
         "name": workout.notes or f"{workout.type.title()} session",
-        "sport_type": SPORT_TYPES.get(workout.type.lower(), DEFAULT_SPORT),
-        # Strava reads these digits as local wall-clock time; the offset is ignored.
+        "sport_type": SPORT_TYPES.get(workout.type.lower(), "Workout"),
+        # Strava reads these digits as local wall-clock time; any offset is ignored.
         "start_date_local": f"{workout.date}T{_clock(workout.start) or '12:00'}:00",
         "elapsed_time": _elapsed(workout.date, workout.start, workout.end),
         "description": description,
     }
-    body = _post(f"{API}/activities", payload, _access_token(store))
-    return int(body["id"])
+    return int(_call("POST", f"{API}/activities", _access_token(store), data=payload)["id"])
 
 
 def push_quietly(workout: Workout, description: str = "", store=None) -> str:
-    """Push if configured, never raise — Strava being down must not fail the log.
-
-    Returns a suffix for the confirm message ('' when Strava isn't set up).
-    """
+    """Confirm-message suffix. Never raises — the sheet row is already written."""
     if not configured():
         return ""
     try:
         push_workout(workout, description, store)
         return " · Strava ✓"
-    except Exception as e:  # noqa: BLE001 — the row is already written; nothing may escape
+    except Exception as e:  # noqa: BLE001
         log.warning("Strava push failed: %s", e)
         return " · Strava ✗ (sheet saved)"
 
@@ -171,29 +157,25 @@ def _to_workout(a: dict) -> ParsedWorkout:
         start=start.strftime("%H:%M"),
         end=(start + datetime.timedelta(seconds=elapsed)).strftime("%H:%M"),
         notes=summary,
-        # The activity id keeps raw_text stable, so re-running dedups exactly.
-        raw_text=f"strava:{a['id']} {a.get('name', 'Run')} — {summary}",
+        raw_text=f"strava:{a['id']} {a.get('name', 'Run')} — {summary}",  # stable → dedups
     )
 
 
-def fetch_runs(sports: tuple[str, ...] = RUN_TYPES, store=None) -> list[ParsedWorkout]:
-    """Every run in the athlete's history, oldest first."""
-    headers = {"Authorization": f"Bearer {_access_token(store)}"}
-    runs, page = [], 1
+def fetch_runs(store=None) -> list[ParsedWorkout]:
+    """Every run in the athlete's history, oldest first. Manual activities are
+    skipped — the ones we push are manual, and re-importing one would duplicate it."""
+    token, runs, page = _access_token(store), [], 1
     while True:
-        r = httpx.get(
+        batch = _call(
+            "GET",
             f"{API}/athlete/activities",
+            token,
             params={"per_page": _PAGE, "page": page},
-            headers=headers,
-            timeout=_TIMEOUT,
         )
-        if r.status_code >= 300:
-            raise StravaError(f"list activities → {r.status_code}: {r.text[:150]}")
-        batch = r.json()
-        # Manual activities are skipped: the ones we push back are manual, and
-        # re-importing them would duplicate the session we logged in chat.
         runs += [
-            _to_workout(a) for a in batch if a.get("sport_type") in sports and not a.get("manual")
+            _to_workout(a)
+            for a in batch
+            if a.get("sport_type") in RUN_TYPES and not a.get("manual")
         ]
         if len(batch) < _PAGE:
             return sorted(runs, key=lambda w: (w.date, w.start or ""))
@@ -204,7 +186,6 @@ def fetch_runs(sports: tuple[str, ...] = RUN_TYPES, store=None) -> list[ParsedWo
 
 
 def _auth() -> None:
-    """One-off browser authorization → the refresh token for .env."""
     cid = settings.strava_client_id
     if not cid:
         print("Set STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET in .env first.")
@@ -212,16 +193,16 @@ def _auth() -> None:
     print(
         f"1. Open:\n   {AUTH_URL}?client_id={cid}&redirect_uri={REDIRECT_URI}"
         f"&response_type=code&approval_prompt=force&scope={SCOPE}\n"
-        "2. Approve. The browser lands on a page that won't load — copy the\n"
-        "   `code` query param out of the address bar. It is single-use.\n"
+        "2. Approve, then copy the single-use `code` param out of the address bar\n"
+        "   of the page that fails to load.\n"
     )
-    code = input("code: ").strip()
-    body = _post(
+    body = _call(
+        "POST",
         TOKEN_URL,
-        {
+        data={
             "client_id": cid,
             "client_secret": settings.strava_client_secret,
-            "code": code,
+            "code": input("code: ").strip(),
             "grant_type": "authorization_code",
         },
     )
@@ -235,7 +216,7 @@ def _backfill(do_commit: bool) -> None:
 
     store = SheetsStore.open()
     seen = committed_hashes(store)
-    runs = fetch_runs(store=store)
+    runs = fetch_runs(store)
     new = [w for w in runs if raw_hash(w.raw_text) not in seen]
     for pw in new:
         print(f"  {pw.date} {pw.notes}")

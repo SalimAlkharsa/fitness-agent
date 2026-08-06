@@ -209,44 +209,28 @@ OpenRouter rate limit before pointing it at two years of history.
 
 ## 8. Strava (optional)
 
-Turn this on and every workout you confirm is also posted to Strava as a manual
-activity, and your Strava runs can be pulled into the sheet.
+Every workout you confirm in chat also gets posted to Strava as a manual activity,
+and your Strava runs can be pulled into the sheet.
 
 Since June 2026 Strava's developer program requires an **active Strava
-subscription** for Standard-tier API access. If you aren't a subscriber, check
-<https://www.strava.com/settings/api> before wiring any of this up.
+subscription** for Standard-tier API access — check before wiring this up.
 
-1. Create an API application at <https://www.strava.com/settings/api>. Set
-   **Authorization Callback Domain** to `localhost` (domain only — no scheme, no
-   port). A new app is in "single player mode": only you can authorize it, which
-   is all this needs.
-2. Put the client id and secret in `.env`, then authorize your own app:
+1. Create an API application at <https://www.strava.com/settings/api>, with
+   **Authorization Callback Domain** set to `localhost` (domain only). A new app
+   is in "single player mode": only you can authorize it, which is all this needs.
+2. Put the client id and secret in `.env`, then authorize your own app with
+   `uv run python -m app.strava auth`. It prints a URL — approve it, then copy the
+   single-use `code` param out of the address bar of the page that fails to load.
+   You get a `STRAVA_REFRESH_TOKEN` for `.env`.
+3. Pull your run history in — `uv run python -m app.strava backfill` to preview,
+   `--commit` to write. Runs land as `type=run` sessions with distance, time and
+   pace in the notes; no LLM, so it costs no quota, and re-running skips anything
+   already logged.
 
-   ```bash
-   uv run python -m app.strava auth
-   ```
-
-   It prints a URL — open it, approve, and the browser lands on a
-   `http://localhost/exchange_token?...&code=...` page that won't load. Copy the
-   `code` value out of the address bar and paste it back (it's single-use). You get
-   a `STRAVA_REFRESH_TOKEN` for `.env`.
-3. Pull your run history in:
-
-   ```bash
-   uv run python -m app.strava backfill            # preview
-   uv run python -m app.strava backfill --commit   # write to the sheet
-   ```
-
-Runs land as `type=run` sessions with distance, time and pace in the notes; no
-LLM is involved, so this costs no quota. Re-running skips anything already logged.
-Leave the three `STRAVA_*` vars blank and none of this happens.
-
-A few things worth knowing: only workouts you confirm in **chat** are mirrored, so
-running a backfill never publishes your history; runs you added to Strava by hand
-are skipped on import, since that's how the mirror's own posts look; Strava rotates
-refresh tokens, so the live one is kept in the sheet's `_meta` tab and `.env` is
-only the seed; and Strava's API has no delete, so an activity posted by mistake has
-to be removed in the Strava app.
+Worth knowing: only chat logs are mirrored, so a backfill never publishes your
+history; runs you added to Strava by hand are skipped on import, since that's how
+the mirror's own posts look; and Strava's API has no delete, so an activity posted
+by mistake has to be removed in the Strava app.
 
 ---
 

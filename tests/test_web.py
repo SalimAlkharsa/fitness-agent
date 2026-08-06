@@ -362,20 +362,12 @@ def test_replayed_or_tampered_card_cannot_double_log():
 
 def _strava_on(monkeypatch, push):
     """Configure Strava and stub only the network call, so the real gating runs."""
-    monkeypatch.setattr(
-        web.strava,
-        "settings",
-        replace(
-            web.strava.settings,
-            strava_client_id="1",
-            strava_client_secret="s",
-            strava_refresh_token="rt",
-        ),
-    )
+    creds = dict(strava_client_id="1", strava_client_secret="s", strava_refresh_token="rt")
+    monkeypatch.setattr(web.strava, "settings", replace(web.strava.settings, **creds))
     monkeypatch.setattr(web.strava, "push_workout", push)
 
 
-def test_chat_confirm_mirrors_to_strava_but_a_backfill_card_does_not(monkeypatch):
+def test_only_a_fresh_chat_log_mirrors_to_strava(monkeypatch):
     _inject_store()
     pushed: list = []
     _strava_on(monkeypatch, lambda w, description="", store=None: pushed.append(w.workout_id))
@@ -384,34 +376,43 @@ def test_chat_confirm_mirrors_to_strava_but_a_backfill_card_does_not(monkeypatch
 
     token = _extract_token(client.post("/chat", data={"message": "log it"}).text)
     r = client.post("/confirm", data=_card_form(token, "confirm"))
-    assert "Logged W0001" in r.text and "Strava ✓" in r.text
-    assert pushed == ["W0001"]
+    assert "Logged W0001" in r.text and "Strava ✓" in r.text and pushed == ["W0001"]
+
+    # An edit corrects an already-mirrored row, and Strava has no delete → no re-push.
+    web._AGENT = FakeAgent(_edit_pending_result())
+    edit = _card_form(_extract_token(client.post("/chat", data={"message": "fix"}).text), "confirm")
+    edit["s0-per_side"] = "70"
+    r2 = client.post("/confirm", data=edit)
+    assert "Updated W0001" in r2.text and "Strava" not in r2.text
 
     # Backfill cards post to this same route; replaying history must stay off the feed.
+    web._AGENT = FakeAgent(_pending_result())
     web._BACKFILL_PARSER = lambda m: ParseResult(
         workouts=[ParsedWorkout(date="2025-01-02", type="basketball", raw_text=m)]
     )
     review = client.post("/backfill", data={"dump": "hoops on jan 2"})
-    bf_form = {
-        "token": _extract_token(review.text),
-        "decision": "confirm",
-        "n_sets": "0",
-        "w-date": "2025-01-02",
-        "w-type": "basketball",
-        "w-raw": "hoops on jan 2",
-    }
-    r2 = client.post("/confirm", data=bf_form)
-    assert "Logged W0002" in r2.text and "Strava" not in r2.text
-    assert pushed == ["W0001"]
+    r3 = client.post(
+        "/confirm",
+        data={
+            "token": _extract_token(review.text),
+            "decision": "confirm",
+            "n_sets": "0",
+            "w-date": "2025-01-02",
+            "w-type": "basketball",
+            "w-raw": "hoops on jan 2",
+        },
+    )
+    assert "Logged W0002" in r3.text and "Strava" not in r3.text
+    assert pushed == ["W0001"]  # still only the one
+
+
+def _boom(*args, **kwargs):
+    raise RuntimeError("strava (or the sheet's token read) failed")
 
 
 def test_confirm_still_commits_when_the_strava_push_blows_up(monkeypatch):
     store = _inject_store()
-
-    def boom(*args, **kwargs):
-        raise RuntimeError("strava (or the sheet's token read) failed")
-
-    _strava_on(monkeypatch, boom)
+    _strava_on(monkeypatch, _boom)
     client = _client(_pending_result())
     _login(client)
 

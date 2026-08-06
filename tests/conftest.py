@@ -1,9 +1,4 @@
-"""Shared test guards.
-
-The suite must never touch the network. `load_dotenv()` means a developer's real
-`.env` is live during tests, and the confirm path now pushes to Strava — so
-Strava is forced off for every test, and a test that wants it opts in explicitly.
-"""
+"""Shared test guards."""
 
 from __future__ import annotations
 
@@ -13,16 +8,11 @@ import pytest
 
 from app import strava
 
+_OFF = dict(strava_client_id=None, strava_client_secret=None, strava_refresh_token=None)
+
 
 @pytest.fixture(autouse=True)
 def strava_off(monkeypatch):
-    monkeypatch.setattr(
-        strava,
-        "settings",
-        replace(
-            strava.settings,
-            strava_client_id=None,
-            strava_client_secret=None,
-            strava_refresh_token=None,
-        ),
-    )
+    """`load_dotenv()` makes a real .env live in tests and /confirm pushes to
+    Strava, so the suite would post to the real feed. Opt in explicitly instead."""
+    monkeypatch.setattr(strava, "settings", replace(strava.settings, **_OFF))
