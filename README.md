@@ -69,6 +69,10 @@ A few decisions that turned out to matter:
 - **Weight math is code.** `60 lbs on each side` on a barbell is 165 lbs, and
   that's a lookup plus arithmetic, not something to hope a model gets right.
 
+There's an optional **Strava mirror**: confirmed workouts get posted there as
+manual activities, and my Strava runs get pulled back into the sheet. The sheet
+stays the source of truth — if Strava is down the log still lands.
+
 The parsing quirks it has to handle are real ones from my own logs — fractional
 reps, per-side vs. stack weights, assisted dips, `then` meaning a second
 set-group. They're collected in

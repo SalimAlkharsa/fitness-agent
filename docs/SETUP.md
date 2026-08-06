@@ -207,6 +207,35 @@ OpenRouter rate limit before pointing it at two years of history.
 
 ---
 
+## 8. Strava (optional)
+
+Turn this on and every workout you confirm is also posted to Strava as a manual
+activity, and your Strava runs can be pulled into the sheet.
+
+1. Create an API application at <https://www.strava.com/settings/api>. Set
+   **Authorization Callback Domain** to `localhost`.
+2. Put the client id and secret in `.env`, then authorize your own app:
+
+   ```bash
+   uv run python -m app.strava auth
+   ```
+
+   It prints a URL — open it, approve, and the browser lands on a
+   `http://localhost/?...&code=...` page that won't load. Copy the `code` value out
+   of the address bar and paste it back. You get a `STRAVA_REFRESH_TOKEN` for `.env`.
+3. Pull your run history in:
+
+   ```bash
+   uv run python -m app.strava backfill            # preview
+   uv run python -m app.strava backfill --commit   # write to the sheet
+   ```
+
+Runs land as `type=run` sessions with distance, time and pace in the notes; no
+LLM is involved, so this costs no quota. Re-running skips anything already logged.
+Leave the three `STRAVA_*` vars blank and none of this happens.
+
+---
+
 ## Operating it
 
 | task | how |

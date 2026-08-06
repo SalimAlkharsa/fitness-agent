@@ -149,6 +149,12 @@ exception), or add an agent framework — the hand-rolled loop is a deliberate c
   refs dropped from `DESIGN.md`. Source comments simplified in the same pass; the
   *why* comments (platform caps, date resolution, escape-before-markdown, base64
   content-type rule) are load-bearing — don't strip them next time.
+- **Strava mirror (2026-08-06)**: `app/strava.py` — confirmed workouts post to
+  Strava as manual activities (chat confirm path only, best-effort, never fails
+  the sheet write); `python -m app.strava backfill` pulls runs in as `type=run`
+  sessions. Strava's MCP connector is read-only *and* subscriber-gated, so this is
+  the v3 REST API with a one-off `python -m app.strava auth`. **Needs Salim's
+  `STRAVA_*` values in `.env` before it does anything** — see DESIGN.md.
 - **Pre-public exposure audit (2026-07-24)**: `.deployed/versions.json` is now
   untracked and gitignored, and `/healthz` no longer echoes raw exception text
   (gspread quotes the sheet ID and SA email; unauthenticated endpoint).
