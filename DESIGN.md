@@ -241,17 +241,20 @@ Optional, off unless `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` /
 `STRAVA_REFRESH_TOKEN` are all set. Strava's MCP connector is read-only (and
 subscriber-gated), so `app/strava.py` uses the v3 REST API directly.
 
-- **Out**: a confirmed workout is posted as a manual activity (`POST /activities`)
-  from the chat confirm path only — backfill and the CLI don't push, so replaying
-  history can't spam the feed. `workout.type` maps to a Strava `sport_type`
-  (`strength → WeightTraining`, `basketball → Basketball`, …, default `Workout`);
-  the commit summary becomes the description. Duration comes from `start`/`end`
-  when the card has them, else a flat hour.
+- **Out**: a confirmed workout is posted as a manual activity (`POST /activities`).
+  `workout.type` maps to a Strava `sport_type` (`strength → WeightTraining`,
+  `basketball → Basketball`, …, default `Workout`); the commit summary becomes the
+  description. Duration comes from `start`/`end` when the card has them, else a
+  flat hour.
+- **Only chat logs push.** Backfill cards post to the same `/confirm` route, so
+  the card carries a signed `source` and only `chat` mirrors — otherwise pasting a
+  two-year dump would publish all of it. The CLI paths don't push at all.
 - **In**: `python -m app.strava backfill [--commit]` pulls `GET /athlete/activities`
   and maps each run to a `type=run` workout with distance/time/pace in `notes` —
   no LLM, no schema change (a run is a session with no sets, like basketball).
   `raw_text` is `strava:<activity_id> …`, so the existing raw-text hash dedup makes
-  re-runs idempotent.
+  re-runs idempotent. Manual activities are skipped: the runs *we* push are manual,
+  and re-importing one would duplicate the session it came from.
 - **The sheet is the source of truth**: the push is best-effort and never raises —
   a Strava outage appends `Strava ✗` to the confirm message and nothing else
   changes.

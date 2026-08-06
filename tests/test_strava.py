@@ -22,7 +22,8 @@ def _settings(monkeypatch, **overrides):
 
 
 @pytest.fixture
-def creds(monkeypatch):
+def creds(monkeypatch, strava_off):
+    """Opt back in to Strava (conftest forces it off for every test)."""
     _settings(
         monkeypatch,
         strava_client_id="1",
@@ -48,7 +49,8 @@ def _stub(
 
     def get(url, params=None, headers=None, timeout=None):
         page = (params or {}).get("page", 1)
-        return httpx.Response(200, json=activities if page == 1 else [])
+        batch = (activities or [])[(page - 1) * strava._PAGE : page * strava._PAGE]
+        return httpx.Response(200, json=batch)
 
     monkeypatch.setattr(httpx, "post", post)
     monkeypatch.setattr(httpx, "get", get)
@@ -121,6 +123,24 @@ def test_rotated_refresh_token_is_persisted_and_reused(monkeypatch, creds):
     assert posts[-1][1]["refresh_token"] == "rt2"
 
 
+def test_fetch_runs_pages_until_the_batch_is_short(monkeypatch, creds):
+    page1 = [
+        {
+            "id": i,
+            "sport_type": "Run",
+            "distance": 1609.344,
+            "moving_time": 600,
+            "elapsed_time": 600,
+            "start_date_local": f"2026-07-04T{i // 60:02d}:{i % 60:02d}:00Z",
+        }
+        for i in range(strava._PAGE)
+    ]
+    tail = [{**page1[0], "id": 9001, "start_date_local": "2026-07-05T06:00:00Z"}]
+    _stub(monkeypatch, [], activities=page1 + tail)
+
+    assert len(strava.fetch_runs()) == strava._PAGE + 1
+
+
 def test_push_quietly_is_a_no_op_when_unconfigured(monkeypatch):
     _settings(monkeypatch, strava_client_id=None)
     workout = Workout(
@@ -141,11 +161,18 @@ def test_backfill_maps_runs_and_commits_them_once(monkeypatch, creds):
             "start_date_local": "2026-07-04T06:30:00Z",
         },
         {"id": 556, "sport_type": "Ride", "start_date_local": "2026-07-05T06:00:00Z"},
+        # A run we pushed ourselves — re-importing it would duplicate the session.
+        {
+            "id": 557,
+            "sport_type": "Run",
+            "manual": True,
+            "start_date_local": "2026-07-06T06:00:00Z",
+        },
     ]
     _stub(monkeypatch, [], activities=activities)
 
     runs = strava.fetch_runs()
-    assert len(runs) == 1  # the ride is filtered out
+    assert len(runs) == 1  # the ride and our own manual echo are filtered out
     run = runs[0]
     assert (run.date, run.type, run.start, run.end) == ("2026-07-04", "run", "06:30", "07:11")
     assert run.notes == "5.00 mi in 40:00, 8:00/mi"

@@ -133,7 +133,7 @@ def push_quietly(workout: Workout, description: str = "", store=None) -> str:
     try:
         push_workout(workout, description, store)
         return " · Strava ✓"
-    except (StravaError, httpx.HTTPError, KeyError, ValueError) as e:
+    except Exception as e:  # noqa: BLE001 — the row is already written; nothing may escape
         log.warning("Strava push failed: %s", e)
         return " · Strava ✗ (sheet saved)"
 
@@ -179,7 +179,11 @@ def fetch_runs(sport: str = "Run", store=None) -> list[ParsedWorkout]:
         if r.status_code >= 300:
             raise StravaError(f"list activities → {r.status_code}: {r.text[:150]}")
         batch = r.json()
-        runs += [_to_workout(a) for a in batch if a.get("sport_type") == sport]
+        # Manual activities are skipped: the ones we push back are manual, and
+        # re-importing them would duplicate the session we logged in chat.
+        runs += [
+            _to_workout(a) for a in batch if a.get("sport_type") == sport and not a.get("manual")
+        ]
         if len(batch) < _PAGE:
             return sorted(runs, key=lambda w: (w.date, w.start or ""))
         page += 1

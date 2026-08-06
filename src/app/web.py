@@ -448,7 +448,7 @@ def _confirm_log(card: PendingCard, form: dict, decision: str) -> Response:
     ):
         return render("_confirmed.html", {"message": f"Already logged as {match.workout_id}."})
     workout, summary = logflow.commit_workout(store, pw, kb_updates)
-    mirrored = strava.push_quietly(workout, summary, store)
+    mirrored = strava.push_quietly(workout, summary, store) if card.source == "chat" else ""
     return render("_confirmed.html", {"message": f"✅ {summary}{mirrored}"})
 
 
@@ -497,7 +497,9 @@ def backfill_run(request: Request) -> Response:
     for item in items:
         for pw in item.workouts:
             unknowns = logflow.unknown_exercises(pw, kb)
-            token = sign_card(PendingCard(kind="log", workout=pw, unknowns=unknowns))
+            token = sign_card(
+                PendingCard(kind="log", workout=pw, unknowns=unknowns, source="backfill")
+            )
             tokens.append(token)
             cards.append(
                 {

@@ -241,9 +241,12 @@ Runs land as `type=run` sessions with distance, time and pace in the notes; no
 LLM is involved, so this costs no quota. Re-running skips anything already logged.
 Leave the three `STRAVA_*` vars blank and none of this happens.
 
-Two things worth knowing: Strava rotates refresh tokens, so the live one is kept
-in the sheet's `_meta` tab and `.env` is only the seed; and Strava's API has no
-delete, so an activity posted by mistake has to be removed in the Strava app.
+A few things worth knowing: only workouts you confirm in **chat** are mirrored, so
+running a backfill never publishes your history; runs you added to Strava by hand
+are skipped on import, since that's how the mirror's own posts look; Strava rotates
+refresh tokens, so the live one is kept in the sheet's `_meta` tab and `.env` is
+only the seed; and Strava's API has no delete, so an activity posted by mistake has
+to be removed in the Strava app.
 
 ---
 

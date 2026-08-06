@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+from dataclasses import replace
 
 # Force the test passphrase/secret regardless of any .env already loaded into the
 # process by an earlier test module (load_dotenv may have set an empty PASSPHRASE).
@@ -352,6 +353,70 @@ def test_replayed_or_tampered_card_cannot_double_log():
     r_bad = client.post("/confirm", data=_card_form(token[:-4] + "0000", "confirm"))
     assert "expired" in r_bad.text.lower()
     assert len(store.read_workouts()) == 1
+
+
+# --- Strava mirror ---
+
+
+def _strava_on(monkeypatch, push):
+    """Configure Strava and stub only the network call, so the real gating runs."""
+    monkeypatch.setattr(
+        web.strava,
+        "settings",
+        replace(
+            web.strava.settings,
+            strava_client_id="1",
+            strava_client_secret="s",
+            strava_refresh_token="rt",
+        ),
+    )
+    monkeypatch.setattr(web.strava, "push_workout", push)
+
+
+def test_chat_confirm_mirrors_to_strava_but_a_backfill_card_does_not(monkeypatch):
+    _inject_store()
+    pushed: list = []
+    _strava_on(monkeypatch, lambda w, description="", store=None: pushed.append(w.workout_id))
+    client = _client(_pending_result())
+    _login(client)
+
+    token = _extract_token(client.post("/chat", data={"message": "log it"}).text)
+    r = client.post("/confirm", data=_card_form(token, "confirm"))
+    assert "Logged W0001" in r.text and "Strava ✓" in r.text
+    assert pushed == ["W0001"]
+
+    # Backfill cards post to this same route; replaying history must stay off the feed.
+    web._BACKFILL_PARSER = lambda m: ParseResult(
+        workouts=[ParsedWorkout(date="2025-01-02", type="basketball", raw_text=m)]
+    )
+    review = client.post("/backfill", data={"dump": "hoops on jan 2"})
+    bf_form = {
+        "token": _extract_token(review.text),
+        "decision": "confirm",
+        "n_sets": "0",
+        "w-date": "2025-01-02",
+        "w-type": "basketball",
+        "w-raw": "hoops on jan 2",
+    }
+    r2 = client.post("/confirm", data=bf_form)
+    assert "Logged W0002" in r2.text and "Strava" not in r2.text
+    assert pushed == ["W0001"]
+
+
+def test_confirm_still_commits_when_the_strava_push_blows_up(monkeypatch):
+    store = _inject_store()
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("strava (or the sheet's token read) failed")
+
+    _strava_on(monkeypatch, boom)
+    client = _client(_pending_result())
+    _login(client)
+
+    token = _extract_token(client.post("/chat", data={"message": "log it"}).text)
+    r = client.post("/confirm", data=_card_form(token, "confirm"))
+    assert r.status_code == 200 and "Strava ✗" in r.text
+    assert len(store.read_workouts()) == 1  # the sheet write is what actually matters
 
 
 # --- backfill review ---
