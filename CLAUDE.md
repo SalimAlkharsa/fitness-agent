@@ -30,7 +30,13 @@ secret land in a tracked file.
 4. **Tests over demos, but bare-essential only** — see "Testing policy" below.
    Every parsing rule and total-weight computation is still covered against the real
    examples in `evals/golden/README.md`, but through the fewest tests that do it.
-5. If you discover the design is wrong somewhere, don't silently diverge:
+5. **Gave the agent a new tool or skill? Prove a model triggers it** — add a row
+   to `sandbox/scenarios.py` and run `make sandbox`. It runs the real agent loop
+   against Claude Haiku (via the `claude` CLI — works with no keys) and a local
+   JSON sheet, so you can verify end to end without OpenRouter quota, Salim's
+   spreadsheet, or a deploy. `sandbox/README.md` has the workflow. Unit tests with
+   a scripted FakeLLM can't answer "does a model actually reach for this tool?".
+6. If you discover the design is wrong somewhere, don't silently diverge:
    update `DESIGN.md` in the same commit and note it in the issue — or ask Salim if
    it's product-shaping (see below).
 

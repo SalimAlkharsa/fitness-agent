@@ -1,4 +1,4 @@
-.PHONY: dev dev-dry test lint eval bootstrap migrate stage deploy url fn-logs
+.PHONY: dev dev-dry test lint sandbox eval bootstrap migrate stage deploy url fn-logs
 
 # uv installs to ~/.local/bin; make sure it's reachable in non-login shells.
 export PATH := $(HOME)/.local/bin:$(PATH)
@@ -17,6 +17,11 @@ test:
 lint:
 	uv run ruff check .
 	uv run ruff format --check .
+
+# Offline skill tester: the real agent against a mock model + mock sheet, no keys.
+# Slow (real model calls per step), so it's deliberately not part of `make test`.
+sandbox:
+	uv run python -m sandbox
 
 eval:
 	uv run python -m app.evals MODEL=$(MODEL)
