@@ -69,6 +69,14 @@ recomputed if a KB base weight is later corrected.
 | Smith Calf Raise | calf raises on smith machine; calf raises smith elevated | smith | 25 | elevated variant = same exercise |
 | Hip Abduction (Out) | hip abductor outer | stack | 0 | total = stated number |
 
+Two write paths keep it current, both confirm-gated: the log card's "same as X, or
+new?" question (learning a name as a workout is logged), and the `update_kb` tool
+("that base is 24, not 45" / "also call it hammer sp" / "add pendulum squat"),
+which shows a before → after card and upserts the row by canonical name. Omitted
+fields keep their current value, so a base-weight fix never resets equipment or
+drops aliases. A KB edit changes how *future* logs compute — already-written rows
+keep their totals (per_side is stored, so a backfill could recompute them).
+
 ### Tab `inbox`
 timestamp, raw_text, error. Failed parses land here; nothing is ever lost.
 
@@ -218,8 +226,9 @@ tools (`query_history`, `describe_data`, `exercise_stats`, `personal_records`,
 - **Charts touch no filesystem**: `make_chart` returns an SVG string rendered
   inline; the model never influences a path.
 
-Writes still only ever happen through the confirm-gated `log_workout` / `undo`
-tools, on the user's ✅ — never from a read tool. Confirm-card tokens are signed
+Writes still only ever happen through the confirm-gated `log_workout` /
+`edit_workout` / `undo` / `update_kb` tools, on the user's ✅ — never from a read
+tool. Confirm-card tokens are signed
 (`app/cards.py`), so a forged POST can't invent a write payload without
 `SECRET_KEY`. OS-level isolation now comes free from the platform: each
 invocation runs in DigitalOcean's sandbox with no persistent host to harden

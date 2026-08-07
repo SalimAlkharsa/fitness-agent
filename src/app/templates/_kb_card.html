@@ -1,0 +1,13 @@
+{# Confirm card for update_kb (an exercise_kb row), shown as before → after. #}
+<form class="card" id="card-{{ card.token[-12:] }}"
+      hx-post="{{ base }}/confirm" hx-target="#card-{{ card.token[-12:] }}" hx-swap="outerHTML">
+  <input type="hidden" name="token" value="{{ card.token }}">
+  <h4>Update the exercise knowledge base?</h4>
+  <div class="meta">Now: {{ card.before }}</div>
+  <div class="meta">New: {{ card.after }}</div>
+  <div class="meta">Applies to future logs — already-logged rows are unchanged.</div>
+  <div class="card-actions">
+    <button class="btn ok" type="submit" name="decision" value="confirm">✅ Save</button>
+    <button class="btn bad" type="submit" name="decision" value="cancel">Cancel</button>
+  </div>
+</form>

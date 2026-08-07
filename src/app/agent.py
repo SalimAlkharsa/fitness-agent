@@ -151,6 +151,10 @@ def build_system_prompt(
         "Correcting something already logged (wrong weight/reps/date on a past entry) "
         "→ edit_workout, never log_workout — log_workout would create a duplicate "
         "instead of fixing the existing row.",
+        "Correcting the knowledge base itself (a wrong base_lbs or equipment, another "
+        "name for an exercise, a new exercise) → update_kb. You CAN change the "
+        "knowledge base — never tell the user you can't, and never just promise to "
+        "remember it for later.",
         "",
         "Answering questions (pick the ONE tool that fits — you cannot run code):",
         "- Orient with describe_data when unsure what's logged (exercises, date range).",

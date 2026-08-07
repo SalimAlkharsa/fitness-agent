@@ -271,6 +271,12 @@ def _build_cards(result) -> list[dict]:
         if editing and not pws:  # nothing to edit — a card that says so, no fields
             token = sign_card(PendingCard(kind="edit"))
             cards.append({"kind": "edit", "token": token, "workout": None})
+    elif pending.tool == "update_kb":
+        entry, existing = logflow.merged_kb_entry(pending.args, _kb())
+        before = logflow.kb_line(existing) if existing else "(not in the knowledge base yet)"
+        token = sign_card(PendingCard(kind="kb", kb_entry=entry, label=before))
+        after = logflow.kb_line(entry)
+        cards.append({"kind": "kb", "token": token, "before": before, "after": after})
     elif pending.tool == "undo":
         store = get_store()
         target = _target_workout(store, pending.args.workout_id)
@@ -425,7 +431,21 @@ def confirm(request: Request) -> Response:
         return Response(body='<div class="note">This card has expired.</div>')
     if card.kind == "undo":
         return _confirm_undo(card, form.get("decision", ""))
+    if card.kind == "kb":
+        return _confirm_kb(card, form.get("decision", ""))
     return _confirm_log(card, form, form.get("decision", ""))
+
+
+def _confirm_kb(card: PendingCard, decision: str) -> Response:
+    """Upsert the exercise_kb row. Idempotent by canonical name, so a replayed
+    token just rewrites the same values — no dedup guard needed."""
+    store = get_store()
+    if decision != "confirm" or card.kb_entry is None:
+        return render("_confirmed.html", {"message": "Cancelled — knowledge base unchanged."})
+    if store is None:
+        return Response(body='<div class="note">No sheet configured.</div>')
+    store.upsert_kb(card.kb_entry)
+    return render("_confirmed.html", {"message": f"✅ Saved: {logflow.kb_line(card.kb_entry)}"})
 
 
 def _confirm_log(card: PendingCard, form: dict, decision: str) -> Response:
