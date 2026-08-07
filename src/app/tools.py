@@ -170,7 +170,9 @@ class UpdateKbArgs(BaseModel):
     base_lbs: float | None = Field(
         default=None,
         description="implement base weight (olympic bar 45, smith ~25, plate-loaded "
-        "machine = its empty carriage weight); omit to keep the current value",
+        "machine = its empty carriage weight); omit to keep the current value, but "
+        "ALWAYS give it when adding a new barbell/smith/hex exercise — it defaults "
+        "to 0 and every future total would be short by the implement's weight",
     )
     notes: str | None = Field(default=None, description="optional note; omit to keep")
 
@@ -186,7 +188,8 @@ UPDATE_KB = Tool(
         "equipment type, teach an alternative name for an exercise already in it, or "
         "add a new exercise. Omitted fields keep their current value. Confirm-gated: "
         "the user sees before → after first. Affects how future logs are computed; it "
-        "does not rewrite rows already logged."
+        "does not rewrite rows already logged. Renaming an exercise's canonical name "
+        "isn't supported — add the other name as an alias instead."
     ),
     args_model=UpdateKbArgs,
     handler=_update_kb_handler,

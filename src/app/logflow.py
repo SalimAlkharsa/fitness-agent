@@ -13,6 +13,7 @@ from __future__ import annotations
 import datetime
 import difflib
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from app.models import (
     Equipment,
@@ -24,6 +25,9 @@ from app.models import (
     compute_total,
 )
 from app.prompt import resolve_exercise
+
+if TYPE_CHECKING:
+    from app.tools import UpdateKbArgs
 
 _PER_SIDE_EQUIP = {Equipment.barbell, Equipment.smith, Equipment.hex}
 
@@ -119,19 +123,17 @@ def kb_line(entry: KBEntry) -> str:
     return f"{entry.canonical} — {entry.equipment}, base {entry.base_lbs:g} lbs; aliases: {aliases}"
 
 
-def merged_kb_entry(args, kb: list[KBEntry]) -> tuple[KBEntry, KBEntry | None]:
-    """Apply an `update_kb` request to the KB: the entry to upsert, plus the
-    existing row it replaces (None when it's a brand-new exercise).
-
-    Omitted fields keep their current value, so "the base is 24, not 45" doesn't
-    silently reset equipment or drop aliases. The name is resolved alias-aware, so
-    Salim can name the exercise however he usually types it.
-    """
+def merged_kb_entry(args: UpdateKbArgs, kb: list[KBEntry]) -> tuple[KBEntry, KBEntry | None]:
+    """Apply an `update_kb` request: the entry to upsert + the row it replaces
+    (None if new). Omitted fields keep their current value, so "the base is 24, not
+    45" never resets equipment or drops aliases. The name resolves alias-aware."""
     canonical = resolve_exercise(args.canonical, kb)
     existing = _kb_map(kb).get(canonical) if canonical else None
     aliases = list(existing.aliases) if existing else []
-    known = {a.lower() for a in aliases}
-    aliases += [a.strip() for a in args.add_aliases if a.strip() and a.strip().lower() not in known]
+    for alias in (a.strip() for a in args.add_aliases):
+        # Dedup case-insensitively (resolution is too) and keep the stored spelling.
+        if alias and alias.lower() not in {a.lower() for a in aliases}:
+            aliases.append(alias)
     base = existing.base_lbs if existing else 0.0
     entry = KBEntry(
         canonical=existing.canonical if existing else args.canonical.strip(),

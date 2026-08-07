@@ -274,7 +274,7 @@ def _build_cards(result) -> list[dict]:
     elif pending.tool == "update_kb":
         entry, existing = logflow.merged_kb_entry(pending.args, _kb())
         before = logflow.kb_line(existing) if existing else "(not in the knowledge base yet)"
-        token = sign_card(PendingCard(kind="kb", kb_entry=entry, label=before))
+        token = sign_card(PendingCard(kind="kb", kb_entry=entry))
         after = logflow.kb_line(entry)
         cards.append({"kind": "kb", "token": token, "before": before, "after": after})
     elif pending.tool == "undo":
@@ -437,8 +437,10 @@ def confirm(request: Request) -> Response:
 
 
 def _confirm_kb(card: PendingCard, decision: str) -> Response:
-    """Upsert the exercise_kb row. Idempotent by canonical name, so a replayed
-    token just rewrites the same values — no dedup guard needed."""
+    """Upsert the exercise_kb row. The card carries the fully merged entry, so a
+    replayed token rewrites identical values — no dedup guard needed. The merge is
+    a build-time snapshot though: an hour-stale card is last-writer-wins, same as a
+    stale edit card."""
     store = get_store()
     if decision != "confirm" or card.kb_entry is None:
         return render("_confirmed.html", {"message": "Cancelled — knowledge base unchanged."})
