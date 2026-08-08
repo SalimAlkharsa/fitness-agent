@@ -52,6 +52,7 @@ deploy: stage
 	set -a && . ./.env && set +a && \
 	export BASE_PATH="$${BASE_PATH:-/}" MODEL="$${MODEL:-nvidia/nemotron-3-ultra-550b-a55b:free}" TOOL_MODE="$${TOOL_MODE:-native}" && \
 	doctl serverless deploy . --remote-build
+	uv run python deploy/release_notes.py
 
 url:
 	doctl serverless functions get fitness/app --url
