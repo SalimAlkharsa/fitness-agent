@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
 
-from app.models import ParsedWorkout, ParseResult
+from app.models import Equipment, ParsedWorkout, ParseResult
 
 if TYPE_CHECKING:
     from app.models import KBEntry
@@ -149,6 +149,52 @@ EDIT_WORKOUT = Tool(
     handler=_edit_workout_handler,
     confirm_required=True,
     summarize=lambda a: "Edit a workout",
+)
+
+
+# --- update_kb (confirm-gated) ---
+
+
+class UpdateKbArgs(BaseModel):
+    canonical: str = Field(
+        min_length=1,
+        description="the exercise to change — an existing canonical name or alias, "
+        "or a new canonical name to add",
+    )
+    add_aliases: list[str] = Field(
+        default_factory=list, description="alternative names to also recognise for it"
+    )
+    equipment: Equipment | None = Field(
+        default=None, description="how it's loaded; omit to keep the current value"
+    )
+    base_lbs: float | None = Field(
+        default=None,
+        description="implement base weight (olympic bar 45, smith ~25, plate-loaded "
+        "machine = its empty carriage weight); omit to keep the current value, but "
+        "ALWAYS give it when adding a new barbell/smith/hex exercise — it defaults "
+        "to 0 and every future total would be short by the implement's weight",
+    )
+    notes: str | None = Field(default=None, description="optional note; omit to keep")
+
+
+def _update_kb_handler(args: BaseModel, ctx: ToolContext) -> object:
+    raise RuntimeError("update_kb is confirm-gated; the upsert happens on confirm")
+
+
+UPDATE_KB = Tool(
+    name="update_kb",
+    description=(
+        "Correct or extend the exercise knowledge base: fix a wrong base weight or "
+        "equipment type, teach an alternative name for an exercise already in it, or "
+        "add a new exercise. Omitted fields keep their current value. Confirm-gated: "
+        "the user sees before → after first. Affects how future logs are computed; it "
+        "does not rewrite rows already logged. Renaming an exercise's canonical name "
+        "isn't supported — add the other name as an alias instead."
+    ),
+    args_model=UpdateKbArgs,
+    handler=_update_kb_handler,
+    confirm_required=True,
+    summarize=lambda a: f"Update the knowledge base: {a.canonical}",
 )
 
 
@@ -412,4 +458,5 @@ def default_tools() -> list[Tool]:
         MAKE_CHART,
         UNDO,
         EDIT_WORKOUT,
+        UPDATE_KB,
     ]

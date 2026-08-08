@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 from app import config
 from app.dedup import DuplicateMatch
 from app.logflow import UnknownExercise
-from app.models import ParsedWorkout
+from app.models import KBEntry, ParsedWorkout
 
 CARD_MAX_AGE = 60 * 60  # seconds — a card left on screen an hour is stale
 _SALT = "fitness-agent-card"
@@ -40,10 +40,12 @@ class PendingCard(BaseModel):
     kind 'edit' → the same editable form, prefilled from an already-logged
         workout (workout_id set); confirming replaces that workout in place.
     kind 'undo' → a workout deletion.
+    kind 'kb' → an exercise_kb row to upsert (update_kb).
     """
 
     kind: str
     workout: ParsedWorkout | None = None
+    kb_entry: KBEntry | None = None
     unknowns: list[UnknownExercise] = Field(default_factory=list)
     duplicate: DuplicateMatch | None = None  # set when this workout looks already-logged
     workout_id: str | None = None

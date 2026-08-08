@@ -9,6 +9,8 @@
       {% include "_log_card.html" %}
     {% elif card.kind == "undo" %}
       {% include "_undo_card.html" %}
+    {% elif card.kind == "kb" %}
+      {% include "_kb_card.html" %}
     {% endif %}
   {% endfor %}
 {% elif result.text or result.charts %}
