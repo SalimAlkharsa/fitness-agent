@@ -136,6 +136,7 @@ Other useful targets:
 |---|---|
 | `make test` | pytest suite |
 | `make lint` | ruff check + format check |
+| `make sandbox` | run the agent end to end against a mock model + mock sheet ([sandbox/](../sandbox/README.md)) |
 | `make eval MODEL=<id>` | score a model against the golden parse fixtures |
 
 ---

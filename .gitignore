@@ -24,3 +24,6 @@ packages/
 
 # doctl deploy metadata (contains the live namespace/API host)
 .deployed/
+
+# Sandbox run artifacts (local mock sheet + agent transcripts)
+sandbox/data/
