@@ -181,6 +181,9 @@ def test_async_chat_dispatches_and_poll_returns_result(monkeypatch):
     r = client.post("/chat", data={"message": "log squats 3x5"})
     assert r.status_code == 200
     assert "poll-turn" in r.text and "/chat/poll" in r.text
+    # The template's poll interval is what POLL_INTERVAL_SECONDS claims it is —
+    # they drive the elapsed-time readout together, so drift would mis-report it.
+    assert f"delay:{web.POLL_INTERVAL_SECONDS}s" in r.text
     assert 'class="bubble user"' in r.text  # user message shown immediately
     # the slow work was dispatched with a signed job carrying the message
     assert captured["__ow_path"] == "/chat"
@@ -202,7 +205,10 @@ def test_async_chat_dispatches_and_poll_returns_result(monkeypatch):
 
 
 def test_poll_gives_up_after_cap(monkeypatch):
-    # A wedged background job must stop polling (and billing) after ~2 min.
+    # A wedged background job must stop polling (and billing) — but only after the
+    # platform's own 300s function cap, so a slow-but-live turn is never abandoned
+    # while it's still coming.
+    assert web.MAX_POLLS * web.POLL_INTERVAL_SECONDS > 300
     client = _client(AgentResult(text="x"))
     _login(client)
     monkeypatch.setattr(web, "settings", _async_settings())

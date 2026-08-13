@@ -27,6 +27,7 @@ from __future__ import annotations
 import datetime
 import json
 import re
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -45,6 +46,12 @@ from app.tools import Tool, ToolContext, default_tools
 # message to a small slice of the 50/day free-tier cap.
 MAX_STEPS = 6
 MAX_VALIDATION_RETRIES = 2
+# Wall-clock ceiling for one turn, under the platform's 300s function cap (see
+# deploy/RUNBOOK.md) with room to render and return the turn HTML. Without it a
+# congested free tier can stretch a turn past the cap: the platform kills the
+# activation, no result is ever written, and the browser polls into nothing.
+# Expiry is a graceful "model busy" answer, not a crash.
+TURN_BUDGET_SECONDS = 235.0
 # Bounds context/cost for a long-lived session; each message is largely
 # self-contained, so an old tail is little loss.
 MAX_HISTORY_MESSAGES = 24
@@ -324,6 +331,7 @@ class Agent:
         last_call_key: str | None = None
         chart_urls: list[str] = []
 
+        deadline = time.monotonic() + TURN_BUDGET_SECONDS
         for _step in range(MAX_STEPS):
             messages = [{"role": "system", "content": system}, *self._history(session)]
             try:
@@ -331,6 +339,7 @@ class Agent:
                     messages,
                     tools=native_tools,
                     json_mode=(self.tool_mode == "json"),
+                    deadline=deadline,
                 )
             except LLMError as e:
                 # Model unreachable / rate-limited / retries exhausted — say so

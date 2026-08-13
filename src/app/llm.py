@@ -19,6 +19,10 @@ from app.config import settings
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 _RETRYABLE = frozenset({429, 500, 502, 503, 504})
+# Don't start an attempt with less than this left on the deadline: the free-tier
+# model needs a few seconds even for a short tool call, so a thinner slice just
+# burns the remaining budget on a request that can't finish.
+_MIN_ATTEMPT = 5.0
 
 
 class LLMError(RuntimeError):
@@ -52,7 +56,16 @@ class OpenRouterClient:
         json_mode: bool = False,
         temperature: float = 0.0,
         model: str | None = None,
+        deadline: float | None = None,
     ) -> LLMResponse:
+        """`deadline` is a `time.monotonic()` stamp the whole call must finish by.
+
+        Without it, a wedged step can burn `retries` × `timeout` plus backoff
+        (~254s at the defaults) — longer than the platform kills the whole
+        function, so the caller never gets to render anything. With it, the
+        request timeout and every backoff sleep are clamped to the remaining
+        budget and we raise `LLMError` early enough for the agent to answer.
+        """
         if not self.api_key:
             raise LLMError("OPENROUTER_API_KEY is not set.")
         payload: dict = {
@@ -67,13 +80,36 @@ class OpenRouterClient:
             payload["response_format"] = {"type": "json_object"}
         headers = {"Authorization": f"Bearer {self.api_key}"}
 
+        def remaining() -> float:
+            return self.timeout if deadline is None else deadline - time.monotonic()
+
+        def backoff(seconds: float) -> bool:
+            """Sleep before the next attempt; False if the budget can't fund one."""
+            if deadline is None:
+                time.sleep(seconds)
+                return True
+            # A retry is only worth starting if there's time to sleep *and* leave
+            # a usable slice for the request itself.
+            if remaining() - seconds < _MIN_ATTEMPT:
+                return False
+            time.sleep(seconds)
+            return True
+
         delay, last_err = 2.0, ""
         for _attempt in range(self.retries):
+            if remaining() < _MIN_ATTEMPT:
+                raise LLMError(f"deadline exceeded: {last_err or 'no attempt made'}")
             try:
-                r = httpx.post(OPENROUTER_URL, headers=headers, json=payload, timeout=self.timeout)
+                r = httpx.post(
+                    OPENROUTER_URL,
+                    headers=headers,
+                    json=payload,
+                    timeout=min(self.timeout, remaining()),
+                )
             except httpx.HTTPError as e:
                 last_err = repr(e)
-                time.sleep(delay)
+                if not backoff(delay):
+                    break
                 delay *= 2
                 continue
             if r.status_code == 200:
@@ -86,17 +122,19 @@ class OpenRouterClient:
                 if err or not body.get("choices"):
                     msg = err.get("message") if isinstance(err, dict) else err
                     last_err = f"upstream error: {msg}"
-                    time.sleep(delay)
+                    if not backoff(delay):
+                        break
                     delay *= 2
                     continue
                 return self._parse(body)
             if r.status_code in _RETRYABLE:
                 last_err = f"HTTP {r.status_code}: {r.text[:200]}"
-                time.sleep(delay)
+                if not backoff(delay):
+                    break
                 delay *= 2
                 continue
             raise LLMError(f"OpenRouter HTTP {r.status_code}: {r.text[:300]}")
-        raise LLMError(f"OpenRouter failed after {self.retries} attempts: {last_err}")
+        raise LLMError(f"OpenRouter failed: {last_err}")
 
     @staticmethod
     def _parse(body: dict) -> LLMResponse:
@@ -133,6 +171,7 @@ class DryRunClient:
         json_mode: bool = False,
         temperature: float = 0.0,
         model: str | None = None,
+        deadline: float | None = None,
     ) -> LLMResponse:
         # The direct parse path (backfill) expects a bare ParseResult, not a tool
         # envelope. Detect it and answer in that shape.

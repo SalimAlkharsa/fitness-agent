@@ -32,6 +32,36 @@ def test_http_200_with_error_body_raises_not_empty(monkeypatch):
     assert "ResourceExhausted" in str(e.value)
 
 
+def test_deadline_clamps_request_timeout_and_stops_retrying(monkeypatch):
+    # A congested free tier used to burn retries × timeout (~254s) on one step —
+    # past the platform's 300s function cap, so the activation was killed and the
+    # browser polled into nothing. Walk that path: every request is clamped to the
+    # remaining budget, backoff never overruns it, and it gives up while there's
+    # still time for the caller to render an answer.
+    # Fake clock: a hung request burns its full timeout, a sleep burns its delay.
+    now = [1000.0]
+    monkeypatch.setattr(llm.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(llm.time, "sleep", lambda s: now.__setitem__(0, now[0] + s))
+    timeouts: list[float] = []
+
+    def fake_post(*_a, **kw):
+        timeouts.append(kw["timeout"])
+        now[0] += kw["timeout"]  # upstream hangs until the timeout expires
+        return _Resp(503, {})
+
+    monkeypatch.setattr(llm.httpx, "post", fake_post)
+
+    client = OpenRouterClient(api_key="k", timeout=60.0, retries=4)
+    start, budget = now[0], 120.0
+    with pytest.raises(LLMError):
+        client.chat([{"role": "user", "content": "hi"}], deadline=start + budget)
+
+    assert timeouts, "should have attempted at least one request"
+    # The whole call lands inside the budget — this is the property that keeps a
+    # turn under the platform cap. Unclamped it would run 4×60s + 14s backoff.
+    assert now[0] - start <= budget
+
+
 def test_http_200_with_choices_parses_normally(monkeypatch):
     ok_body = {"choices": [{"message": {"content": "pong", "tool_calls": []}}]}
     monkeypatch.setattr(llm.httpx, "post", lambda *a, **k: _Resp(200, ok_body))

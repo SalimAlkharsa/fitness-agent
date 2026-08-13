@@ -387,9 +387,16 @@ def chat(request: Request) -> Response:
     return _run_agent_turn(message, history, user_message=message)
 
 
-# Client-side poll cap (2.5s × 48 ≈ 120s): a tab left open on a wedged background
-# job stops polling instead of billing invocations forever.
-MAX_POLLS = 48
+# Client-side poll cap (5s × 66 = 330s): a tab left open on a wedged background
+# job stops polling instead of billing invocations forever. The budget has to
+# outlast the *platform* 300s function cap, not the typical turn — a congested
+# free tier stretches turns to minutes, and giving up first shows a scary error
+# for a job that was still coming. The interval is widened rather than the count
+# raised because every poll is a billed invocation.
+MAX_POLLS = 66
+# Must match the hx-trigger delay in _thinking.html — it's what turns a poll
+# count into the elapsed seconds shown to the user.
+POLL_INTERVAL_SECONDS = 5
 
 
 def chat_poll(request: Request) -> Response:
@@ -408,7 +415,10 @@ def chat_poll(request: Request) -> Response:
                 "Your message wasn’t logged; please try again in a minute."
             )
             return Response(body=f'<div class="bubble assistant err">{msg}</div>')
-        return render("_thinking.html", {"poll_token": token, "poll_n": n})
+        return render(
+            "_thinking.html",
+            {"poll_token": token, "poll_n": n, "waited_s": n * POLL_INTERVAL_SECONDS},
+        )
     body = result.get("body") or ""
     if isinstance(body, str) and body.startswith("{"):
         # The worker hit an internal error (JSON error envelope, not turn HTML).

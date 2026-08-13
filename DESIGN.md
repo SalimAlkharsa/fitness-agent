@@ -117,6 +117,20 @@ the HTTP response.
   agent synchronously, rendering the turn HTML as its activation result.
 - `POST /chat/poll` fetches the activation record (404 until it completes) and
   returns the finished turn, or the placeholder again to keep polling.
+- **Two clocks bound a turn, and they are sized against the platform, not against
+  a typical turn** (revised 2026-08-13 after slow turns showed a spinner that gave
+  up on live work). Free-tier latency is volatile: turns measured 21s on a good
+  day and 160-300s on a congested one, so anything sized to "normal" breaks.
+  - The worker holds a **235s budget** (`agent.TURN_BUDGET_SECONDS`), threaded
+    into `OpenRouterClient.chat` as a deadline that clamps each request timeout
+    *and* each backoff sleep. Unclamped, one wedged step could spend
+    4 retries × 60s + 14s backoff ≈ 254s — past the 300s function cap, so the
+    platform killed the activation and no result was ever written.
+  - The browser polls for **330s** (`MAX_POLLS` × `POLL_INTERVAL_SECONDS`), which
+    must exceed the 300s function cap so the client never abandons a job that is
+    still running. The interval is widened rather than the count raised, because
+    every poll is a billed invocation. Past ~20s the placeholder shows elapsed
+    seconds — a bare indicator for minutes reads as "hung".
 - Credentials: host + namespace come from the runtime-injected `__OW_API_HOST`/
   `__OW_NAMESPACE` (present only when deployed → async stays off locally, so dev
   and tests run synchronously); the namespace key rides in via `project.yml`
