@@ -4,6 +4,11 @@ What's running in production, newest first — `make deploy` appends an entry an
 tells you to commit it. Git subjects and shas only: no URL or namespace, since
 this file is tracked.
 
+## 2026-08-13 00:49 UTC — `92255b5`
+
+- Stop the chat spinner from outliving the turn it waits on
+- Record the 2026-08-08 deploy in RELEASES.md
+
 ## 2026-08-08 01:35 UTC — `1f7aa31`
 
 - Delete tests/test_release_notes.py
