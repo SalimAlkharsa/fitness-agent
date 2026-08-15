@@ -54,7 +54,12 @@ class ClaudeCli:
 
     model = HAIKU
 
-    def chat(self, messages, tools=None, json_mode=False, temperature=0.0, model=None):
+    # `deadline` mirrors OpenRouterClient.chat, which clamps each request to the
+    # turn budget; the CLI has no such knob, so it's accepted and ignored — but it
+    # has to be accepted, or the agent loop can't call this stand-in at all.
+    def chat(
+        self, messages, tools=None, json_mode=False, temperature=0.0, model=None, deadline=None
+    ):
         system = ROLE + "\n\n".join(m["content"] for m in messages if m["role"] == "system")
         convo = "\n\n".join(
             f"<{m['role']}>\n{m.get('content') or ''}" for m in messages if m["role"] != "system"
