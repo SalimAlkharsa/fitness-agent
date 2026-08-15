@@ -349,11 +349,6 @@ def _run_agent_turn(message: str, history: str, *, user_message: str | None) -> 
     return render("_turn.html", ctx)
 
 
-# Chat commands are answered here and never reach the model: no LLM call, no
-# quota spent, and — deployed — no background activation billed.
-CLEAR_COMMAND = "/clear"
-
-
 def chat(request: Request) -> Response:
     # Worker path: a valid signed job blob (from dofn.async_invoke) is what
     # authorizes running the slow agent inside this background activation.
@@ -366,11 +361,11 @@ def chat(request: Request) -> Response:
     message = request.form.get("message", "")
     history = request.form.get("history", "")
 
-    # /clear: start a fresh conversation. The history is the client's, so clearing
-    # it is a client-side swap — the server has nothing to forget. Matched exactly
-    # (trimmed, case-insensitively) so a message that merely mentions the command
-    # is still a normal message.
-    if message.strip().lower() == CLEAR_COMMAND:
+    # /clear: start a fresh conversation. Answered here, so it never reaches the
+    # model — no quota spent, no background activation billed — and the history
+    # being the client's means clearing it is just a swap. Matched exactly, so a
+    # message that merely mentions the command is still a normal message.
+    if message.strip().lower() == "/clear":
         return render("_cleared.html", {})
 
     # Deployed, the agent turn (30-50s) outlives DigitalOcean's ~40s synchronous

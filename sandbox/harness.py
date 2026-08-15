@@ -54,9 +54,8 @@ class ClaudeCli:
 
     model = HAIKU
 
-    # `deadline` mirrors OpenRouterClient.chat, which clamps each request to the
-    # turn budget; the CLI has no such knob, so it's accepted and ignored — but it
-    # has to be accepted, or the agent loop can't call this stand-in at all.
+    # `deadline`: the agent passes it on every step and the CLI has no timeout knob
+    # to clamp, but it has to be accepted or the loop can't call this at all.
     def chat(
         self, messages, tools=None, json_mode=False, temperature=0.0, model=None, deadline=None
     ):
