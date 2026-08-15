@@ -31,7 +31,7 @@ _SQUASH = re.compile(r"^(.*) \(#(\d+)\)$")
 # A commit subject/body can contain anything printable, so records and fields are
 # split on control characters git will never emit as content.
 _REC, _FLD = "\x1e", "\x1f"
-_FORMAT = _FLD.join(["%H", "%P", "%s", "%b"]) + _REC
+_FORMAT = _FLD.join(["%H", "%P", "%s", "%b"])
 
 
 def previous_sha(text: str) -> str | None:
@@ -47,8 +47,12 @@ def insert(text: str, entry: str) -> str:
 
 
 def _git(*args: str) -> str:
+    """Raw stdout — deliberately unstripped: Python counts the separators below as
+    whitespace, so stripping would eat the empty last field of a commit with no
+    body ("Record the … deploy in RELEASES.md" is always one). Callers after a
+    single value strip it themselves."""
     done = subprocess.run(["git", *args], capture_output=True, text=True, check=True)
-    return done.stdout.strip()
+    return done.stdout
 
 
 def _log(span: str, fmt: str, *flags: str) -> list[tuple[str, ...]]:
@@ -103,10 +107,12 @@ def release_body(span: str) -> str:
 def main() -> None:
     text = RELEASES.read_text()
     previous = previous_sha(text)
-    sha = _git("rev-parse", "--short", "HEAD")
+    sha = _git("rev-parse", "--short", "HEAD").strip()
     body = release_body(f"{previous}..HEAD" if previous else "HEAD")
-    if _git("status", "--porcelain"):
-        body = "- ⚠️ dirty tree — uncommitted changes went out too\n" + body
+    if _git("status", "--porcelain").strip():
+        # Blank line, not a newline: the body can open with the "Straight to main"
+        # heading, which Markdown would otherwise fold into this bullet.
+        body = "- ⚠️ dirty tree — uncommitted changes went out too\n\n" + body
     when = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     RELEASES.write_text(insert(text, f"## {when} — `{sha}`\n\n{body}\n\n"))
