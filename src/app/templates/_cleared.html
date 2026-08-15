@@ -1,0 +1,11 @@
+{# `/clear` — a chat command, answered by the web layer and never sent to the model.
+   The composer appends into #thread, so a normal swap could only ever add to the
+   conversation; this replaces the thread's contents out-of-band instead. Wiping the
+   rendered turns wipes the conversation itself: the client-held history lives in the
+   `data-history` blobs those turns carry, so with them gone the composer's hidden
+   field resets to empty (see updateHistory in chat.html). #}
+<div id="thread" hx-swap-oob="innerHTML">
+  <div class="note">Chat cleared — the agent has no memory of what came before.</div>
+  {# Re-created with the thread: it's the composer's indicator target and lives inside. #}
+  <div id="thinking"><div class="typing"><i></i><i></i><i></i></div></div>
+</div>
