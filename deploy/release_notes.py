@@ -1,16 +1,10 @@
 """Record what just went live — run by `make deploy` after doctl succeeds.
 
-Appends to `deploy/RELEASES.md`: when, the commit deployed, and every pull
-request merged since the previous entry. PRs, not commits: a release entry should
-read as the list of changes that shipped, and "address review comments" reads as
-noise next to the PR it belongs to. Both GitHub merge styles count — a merge
-commit ("Merge pull request #29 from …", PR title in its body) and a squash
-("Add the /clear command (#29)"). Anything pushed straight to main has no PR to
-stand for it, so it's listed separately rather than dropped — the log's job is to
-say what's running.
-
-Git data only — no URL, namespace, or API host, since this file is tracked and
-the repo is public.
+Appends to `deploy/RELEASES.md`: when, the commit deployed, and everything that
+landed on main since the previous entry — a pull request per line, plus anything
+pushed straight to main. PRs, not commits: "address review comments" is noise
+next to the PR it belongs to. Git data only — no URL, namespace, or API host,
+since this file is tracked and the repo is public.
 """
 
 from __future__ import annotations
@@ -23,15 +17,12 @@ from pathlib import Path
 RELEASES = Path(__file__).resolve().parent / "RELEASES.md"
 # Entries are newest-first, so the first sha is the last thing deployed.
 _SHA = re.compile(r"^## .*`([0-9a-f]{7,40})`", re.M)
-# "Merge pull request #29 from SalimAlkharsa/branch" — a GitHub merge commit.
+# "Merge pull request #29 from SalimAlkharsa/branch" (title in the body) and
+# "Add the /clear command (#29)" — GitHub's two merge styles.
 _MERGE = re.compile(r"^Merge pull request #(\d+) from (\S+)")
-# "Add the /clear command (#29)" — a GitHub squash merge, one commit on main.
 _SQUASH = re.compile(r"^(.*) \(#(\d+)\)$")
-
-# A commit subject/body can contain anything printable, so records and fields are
-# split on control characters git will never emit as content.
-_REC, _FLD = "\x1e", "\x1f"
-_FORMAT = _FLD.join(["%H", "%P", "%s", "%b"])
+# Field/record separators git will never emit as commit text.
+_FLD, _REC = "\x1f", "\x1e"
 
 
 def previous_sha(text: str) -> str | None:
@@ -47,69 +38,44 @@ def insert(text: str, entry: str) -> str:
 
 
 def _git(*args: str) -> str:
-    """Raw stdout — deliberately unstripped: Python counts the separators below as
-    whitespace, so stripping would eat the empty last field of a commit with no
-    body ("Record the … deploy in RELEASES.md" is always one). Callers after a
-    single value strip it themselves."""
     done = subprocess.run(["git", *args], capture_output=True, text=True, check=True)
-    return done.stdout
-
-
-def _log(span: str, fmt: str, *flags: str) -> list[tuple[str, ...]]:
-    """Split `git log` into field tuples, newest commit first."""
-    out = _git("log", *flags, f"--format={fmt}{_REC}", span)
-    records = (r.strip("\n") for r in out.split(_REC))
-    return [tuple(r.split(_FLD)) for r in records if r]
+    return done.stdout.strip()
 
 
 def release_body(span: str) -> str:
-    """The bullet list for one release: merged PRs, then anything pushed direct.
+    """PRs merged in the range, then anything pushed straight to main.
 
-    Walking newest-first means a PR's merge commit is seen before the commits it
-    brought in, so those can be folded into the PR entry instead of listed twice.
-    A merge that isn't a PR merge folds nothing away — its commits still get
-    listed, since nothing else would speak for them.
+    --first-parent walks main itself, so every entry is one thing that landed
+    there — a PR merge or a direct commit — and a PR's own commits stay folded
+    into its line, which is the whole point of listing PRs.
     """
-    prs: list[str] = []
-    direct: list[str] = []
-    merged: set[str] = set()
-    for sha, parents, subject, body in _log(span, _FORMAT):
-        if sha in merged:
-            continue
-        parent_shas = parents.split()
-        if len(parent_shas) > 1:  # a merge commit
-            match = _MERGE.match(subject)
-            if not match:
-                continue
-            number, branch = match.groups()
-            # --no-merges: a PR branch can carry another PR's merge commit (cut
-            # from main while that one was in flight), and it deserves its entry.
-            brought_in = _log(f"{parent_shas[0]}..{parent_shas[1]}", f"%H{_FLD}%s", "--no-merges")
-            merged.update(c[0] for c in brought_in)
-            # GitHub writes the PR title into the merge body, but an API merge can
-            # leave it empty — then the branch's first commit says more than its name.
-            title = next((ln.strip() for ln in body.splitlines() if ln.strip()), "")
-            prs.append(f"- #{number} {title or (brought_in[-1][1] if brought_in else branch)}")
-            continue
-        match = _SQUASH.match(subject)
-        if match:
-            prs.append(f"- #{match.group(2)} {match.group(1)}")
-        else:
+    prs, direct = [], []
+    log = _git("log", "--first-parent", f"--format=%s{_FLD}%b{_REC}", span)
+    for record in log.split(_REC):
+        subject, _, body = record.strip("\n").partition(_FLD)
+        merge, squash = _MERGE.match(subject), _SQUASH.match(subject)
+        if merge:
+            number, branch = merge.groups()
+            # The body carries the PR title — except after an API merge, which
+            # leaves it empty and the branch name as the only thing left to say.
+            title = next((ln.strip() for ln in body.splitlines() if ln.strip()), branch)
+            prs.append(f"- #{number} {title}")
+        elif squash:
+            prs.append(f"- #{squash.group(2)} {squash.group(1)}")
+        elif subject:
             direct.append(f"- {subject}")
-    if not prs and not direct:
-        return "- redeploy — nothing new since the last entry"
-    parts = ["\n".join(prs)] if prs else []
+    body = "\n".join(prs)
     if direct:
-        parts.append("Straight to main (no PR):\n\n" + "\n".join(direct))
-    return "\n\n".join(parts)
+        body += ("\n\n" if body else "") + "Straight to main (no PR):\n\n" + "\n".join(direct)
+    return body or "- redeploy — nothing new since the last entry"
 
 
 def main() -> None:
     text = RELEASES.read_text()
     previous = previous_sha(text)
-    sha = _git("rev-parse", "--short", "HEAD").strip()
+    sha = _git("rev-parse", "--short", "HEAD")
     body = release_body(f"{previous}..HEAD" if previous else "HEAD")
-    if _git("status", "--porcelain").strip():
+    if _git("status", "--porcelain"):
         # Blank line, not a newline: the body can open with the "Straight to main"
         # heading, which Markdown would otherwise fold into this bullet.
         body = "- ⚠️ dirty tree — uncommitted changes went out too\n\n" + body

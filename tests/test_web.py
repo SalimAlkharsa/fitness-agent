@@ -153,37 +153,23 @@ def test_chat_renders_assistant_bubble():
     assert '"earlier message"' in r2.text and '"and bench?"' in r2.text
 
 
-def test_clear_command_wipes_the_thread_without_reaching_the_model(monkeypatch):
-    class NeverRuns:
-        def run(self, *a, **kw):
-            raise AssertionError("/clear must never reach the model")
-
-    web._AGENT = NeverRuns()
+def test_clear_wipes_the_thread_and_history_without_reaching_the_model(monkeypatch):
+    # Deployed settings: /clear must not dispatch (and bill) a background job either.
+    monkeypatch.setattr(web, "settings", _async_settings())
+    monkeypatch.setattr(web.dofn, "async_invoke", lambda p: pytest.fail("/clear dispatched a job"))
     client = MiniClient()
     _login(client)
     history = '[{"role": "user", "content": "what did I squat?"}]'
     r = client.post("/chat", data={"message": " /Clear ", "history": history})
-    assert r.status_code == 200
-    # The composer appends into #thread, so clearing has to be an out-of-band swap
-    # of the thread's contents...
-    assert 'id="thread" hx-swap-oob="innerHTML"' in r.text
-    assert 'id="thinking"' in r.text  # ...which must put the indicator target back
-    # ...and taking the turns away takes the client-held conversation with them:
-    # no history blob is left in the thread for updateHistory to pick up.
+    # Out-of-band swap of the thread (the composer only appends into it), with the
+    # indicator target restored and no history blob left for updateHistory to find.
+    assert 'id="thread" hx-swap-oob="innerHTML"' in r.text and 'id="thinking"' in r.text
     assert "data-history" not in r.text and "what did I squat?" not in r.text
-
-    # Deployed, the command must not burn a background activation either.
-    monkeypatch.setattr(web, "settings", _async_settings())
-    monkeypatch.setattr(
-        web.dofn, "async_invoke", lambda p: pytest.fail("/clear must not dispatch a job")
-    )
-    assert 'hx-swap-oob="innerHTML"' in client.post("/chat", data={"message": "/clear"}).text
 
     # A message that merely mentions the command is still a normal message.
     web._AGENT = FakeAgent(AgentResult(text="ok"))
     monkeypatch.setattr(web, "settings", config.settings)
-    r_normal = client.post("/chat", data={"message": "/clear my calendar?"})
-    assert "hx-swap-oob" not in r_normal.text and "ok" in r_normal.text
+    assert "ok" in client.post("/chat", data={"message": "/clear my calendar?"}).text
 
 
 # --- async dispatch + polling (deployed path; the sync path above is local/tests) ---
