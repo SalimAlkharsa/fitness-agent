@@ -164,4 +164,5 @@ exception), or add an agent framework — the hand-rolled loop is a deliberate c
   URL, or IPs in the tree or any commit; golden numbers are already altered per
   `evals/golden/README.md`). Salim accepted that his Gmail address stays in 4
   commits' metadata (old SHAs also persist via GitHub's PR refs, so a rewrite
-  wouldn't hide it). Still no `LICENSE` — Salim's pick.
+  wouldn't hide it). `LICENSE` = PolyForm Noncommercial 1.0.0 (Salim's pick:
+  no commercial use or commercial derivatives; free for personal use).

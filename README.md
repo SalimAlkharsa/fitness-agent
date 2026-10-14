@@ -115,3 +115,10 @@ text is preserved) and a burned free-tier LLM quota. No other blast radius.
 Deployed and working end to end. Built with [Claude Code](https://claude.com/claude-code)
 — [`CLAUDE.md`](CLAUDE.md) is the operating guide it works from, kept in the repo
 because it's a real part of how this was built.
+
+## License
+
+[PolyForm Noncommercial 1.0.0](LICENSE). You can read it, run it for yourself, and
+modify it for your own use, free. You can't sell it, host it as a paid service, or
+build a commercial product on it. This is source-available, not open source — the
+license restricts commercial use, which OSI-approved licenses can't.
