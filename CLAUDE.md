@@ -105,8 +105,7 @@ exception), or add an agent framework — the hand-rolled loop is a deliberate c
 
 - Dev happens on a Linux dev box; the repo is the working directory. **Deployment
   target is DigitalOcean Functions free tier** (decided 2026-07-24 to cut cost):
-  one web function `fitness/app`, see `project.yml` + `deploy/RUNBOOK.md`. The old
-  systemd deployment is retired.
+  one web function `fitness/app`, see `project.yml` + `deploy/RUNBOOK.md`.
 - Secrets in `.env` (see `.env.example`). If a needed secret is missing, that's an
   "ask Salim" — don't stub around it silently.
 - The app must stay fully stateless per-request (signed cookies, signed confirm
@@ -115,7 +114,7 @@ exception), or add an agent framework — the hand-rolled loop is a deliberate c
 ## Current status
 
 - Issues #1–#12 done and closed (full core loop, eval, migrations, agent, web
-  chat + auth, log flow, query/charts, backfill, droplet deploy — since retired).
+  chat + auth, log flow, query/charts, backfill, deploy).
   Eval verdict: nemotron free tier passed (94% → 97.7% with the parsing skill);
   model choice stands.
 - **2026-07-24: migrated to DigitalOcean Functions** (Salim-approved refactor to
@@ -155,14 +154,9 @@ exception), or add an agent framework — the hand-rolled loop is a deliberate c
   refs dropped from `DESIGN.md`. Source comments simplified in the same pass; the
   *why* comments (platform caps, date resolution, escape-before-markdown, base64
   content-type rule) are load-bearing — don't strip them next time.
-- **Pre-public exposure audit (2026-07-24)**: `.deployed/versions.json` is now
-  untracked and gitignored, and `/healthz` no longer echoes raw exception text
-  (gspread quotes the sheet ID and SA email; unauthenticated endpoint).
-  The two history leaks that audit found (`.deployed/versions.json` = the live
-  URL; the dev droplet IP in the deleted `deploy/service-control.md`) are gone —
-  history was rewritten since. **Re-audited 2026-10-14: clean** (no secrets, live
-  URL, or IPs in the tree or any commit; golden numbers are already altered per
-  `evals/golden/README.md`). Salim accepted that his Gmail address stays in 4
-  commits' metadata (old SHAs also persist via GitHub's PR refs, so a rewrite
-  wouldn't hide it). `LICENSE` = PolyForm Noncommercial 1.0.0 (Salim's pick:
-  no commercial use or commercial derivatives; free for personal use).
+- **Pre-public audit (re-run 2026-10-14): clean** — no secrets, live URL, or IPs in
+  the tree or any commit; `.deployed/` is untracked and `/healthz` doesn't echo raw
+  exception text. Salim accepted that his Gmail address stays in 4 commits'
+  metadata (old SHAs persist via GitHub's PR refs, so a rewrite wouldn't hide it).
+  `LICENSE` = PolyForm Noncommercial 1.0.0 (Salim's pick: no commercial use or
+  commercial derivatives; free for personal use).

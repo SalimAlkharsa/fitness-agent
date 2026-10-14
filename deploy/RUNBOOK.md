@@ -5,9 +5,8 @@ first-time setup (Google service account, `.env`, first deploy), start with
 [`docs/SETUP.md`](../docs/SETUP.md).
 
 The app deploys as ONE web function (`fitness/app`) that routes every path
-internally (see `app/web.py`). No droplet, no systemd — the platform runs it on
-demand, and the free tier (90,000 GiB-seconds/month) covers single-user use with
-huge headroom.
+internally (see `app/web.py`). The platform runs it on demand, and the free tier
+(90,000 GiB-seconds/month) covers single-user use with huge headroom.
 
 ## Deploy
 

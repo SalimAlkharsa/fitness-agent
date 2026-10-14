@@ -14,7 +14,7 @@ were later revised. For what the project *is*, start with the
 | Decision | Choice |
 |---|---|
 | Interface | Passphrase-gated chat web page. PWA manifest so it installs to the phone home screen. Not real auth: shared passphrase → signed cookie, server-side check; failed logins pay a fixed 1s delay (stateless brute-force throttle). |
-| Hosting | DigitalOcean Functions free tier (revised 2026-07-24, was: systemd on the droplet). One web function routing all paths (`app/web.py` + the `app/serverless.py` OpenWhisk adapter). Platform limits shaped the design: 48 MB bundle → no pandas/matplotlib; 1 MB responses → inline SVG charts; no shared disk/memory → every pending thing is signed and round-tripped through the client; **~40s synchronous-HTTP cap → `/chat` runs the slow agent in a background self-invocation and polls (see Async chat below).** |
+| Hosting | DigitalOcean Functions free tier (revised 2026-07-24). One web function routing all paths (`app/web.py` + the `app/serverless.py` OpenWhisk adapter). Platform limits shaped the design: 48 MB bundle → no pandas/matplotlib; 1 MB responses → inline SVG charts; no shared disk/memory → every pending thing is signed and round-tripped through the client; **~40s synchronous-HTTP cap → `/chat` runs the slow agent in a background self-invocation and polls (see Async chat below).** |
 | State | Google Sheets is the only datastore. `raw_text` stored on every workout = full re-parse is always possible. Server holds zero request state: auth is a signed cookie, pending confirm cards are HMAC-signed blobs in the form (1h TTL, replay stopped by the exact-dup guard), chat history is client-held and rides along with each message. |
 | Stack | Maximal Python, zero Node: framework-free `handle(Request)->Response` router + Jinja2 + htmx (server-rendered UI, no build step), Pydantic models, gspread, pysvgchart (inline SVG charts), httpx, uv/ruff/pytest. |
 | Model | `nvidia/nemotron-3-ultra-550b-a55b:free` via OpenRouter. The choice was gated on data, not vibes: an eval harness scored field accuracy against the golden set, with a ≥90% bar and a cheap paid fallback (Haiku-class) ready if it missed. It scored 94%, and 97.7% once the parsing skill was added — see [`evals/reports/DECISION.md`](evals/reports/DECISION.md). |
@@ -245,8 +245,7 @@ Writes still only ever happen through the confirm-gated `log_workout` /
 tool. Confirm-card tokens are signed
 (`app/cards.py`), so a forged POST can't invent a write payload without
 `SECRET_KEY`. OS-level isolation now comes free from the platform: each
-invocation runs in DigitalOcean's sandbox with no persistent host to harden
-(the old systemd unit is gone with the droplet deployment).
+invocation runs in DigitalOcean's sandbox with no persistent host to harden.
 
 ### Deduplication
 

@@ -1,4 +1,4 @@
-"""Pure-Python analysis helpers (pandas dropped for serverless).
+"""Pure-Python analysis helpers (no pandas — 48 MB serverless bundle limit).
 
 Loaded set/workout rows → joined dicts and the derived series the agent charts and
 reasons over. Definitions follow skills/analysis/SKILL.md: volume = sets·reps·total_lbs.
