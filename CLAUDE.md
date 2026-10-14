@@ -158,8 +158,10 @@ exception), or add an agent framework — the hand-rolled loop is a deliberate c
 - **Pre-public exposure audit (2026-07-24)**: `.deployed/versions.json` is now
   untracked and gitignored, and `/healthz` no longer echoes raw exception text
   (gspread quotes the sheet ID and SA email; unauthenticated endpoint).
-  **STILL OPEN — blocks going public:** two leaks survive in *git history* and
-  need a rewrite + force-push, which is Salim's call: `.deployed/versions.json`
-  (5 blobs: apihost + namespace = the live URL) and the dev droplet's public IP in
-  the deleted `deploy/service-control.md` (1 blob). Untracking does not remove
-  either from history.
+  The two history leaks that audit found (`.deployed/versions.json` = the live
+  URL; the dev droplet IP in the deleted `deploy/service-control.md`) are gone —
+  history was rewritten since. **Re-audited 2026-10-14: clean** (no secrets, live
+  URL, or IPs in the tree or any commit; golden numbers are already altered per
+  `evals/golden/README.md`). Salim accepted that his Gmail address stays in 4
+  commits' metadata (old SHAs also persist via GitHub's PR refs, so a rewrite
+  wouldn't hide it). Still no `LICENSE` — Salim's pick.
