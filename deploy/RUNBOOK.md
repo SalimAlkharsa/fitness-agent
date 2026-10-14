@@ -22,8 +22,8 @@ Redeploy after any code change. If the change bumps `SCHEMA_VERSION`, run
 schema versions disagree.
 
 A successful deploy appends an entry to [`RELEASES.md`](RELEASES.md) — when, the
-commit, and every commit subject since the last deploy — so "is that fix live?"
-is a question the repo answers. Commit it afterwards; nothing auto-commits.
+commit, and every pull request merged since the last deploy — so "is that fix
+live?" is a question the repo answers. Commit it afterwards; nothing auto-commits.
 
 Sessions, confirm cards, and chat history are all stateless (signed cookies +
 signed card blobs + client-held history), so instances can come and go freely.

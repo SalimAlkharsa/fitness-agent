@@ -1,0 +1,8 @@
+{# `/clear`. The composer appends into #thread, so clearing has to replace the
+   thread out-of-band — and taking the turns away takes the conversation with them,
+   since the client-held history lives in the `data-history` blob each turn carries.
+   #thinking comes back with it: it's the composer's indicator target. #}
+<div id="thread" hx-swap-oob="innerHTML">
+  <div class="note">Chat cleared — the agent has no memory of what came before.</div>
+  <div id="thinking"><div class="typing"><i></i><i></i><i></i></div></div>
+</div>

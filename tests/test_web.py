@@ -153,6 +153,25 @@ def test_chat_renders_assistant_bubble():
     assert '"earlier message"' in r2.text and '"and bench?"' in r2.text
 
 
+def test_clear_wipes_the_thread_and_history_without_reaching_the_model(monkeypatch):
+    # Deployed settings: /clear must not dispatch (and bill) a background job either.
+    monkeypatch.setattr(web, "settings", _async_settings())
+    monkeypatch.setattr(web.dofn, "async_invoke", lambda p: pytest.fail("/clear dispatched a job"))
+    client = MiniClient()
+    _login(client)
+    history = '[{"role": "user", "content": "what did I squat?"}]'
+    r = client.post("/chat", data={"message": " /Clear ", "history": history})
+    # Out-of-band swap of the thread (the composer only appends into it), with the
+    # indicator target restored and no history blob left for updateHistory to find.
+    assert 'id="thread" hx-swap-oob="innerHTML"' in r.text and 'id="thinking"' in r.text
+    assert "data-history" not in r.text and "what did I squat?" not in r.text
+
+    # A message that merely mentions the command is still a normal message.
+    web._AGENT = FakeAgent(AgentResult(text="ok"))
+    monkeypatch.setattr(web, "settings", config.settings)
+    assert "ok" in client.post("/chat", data={"message": "/clear my calendar?"}).text
+
+
 # --- async dispatch + polling (deployed path; the sync path above is local/tests) ---
 
 

@@ -1,8 +1,9 @@
 # Release log
 
 What's running in production, newest first — `make deploy` appends an entry and
-tells you to commit it. Git subjects and shas only: no URL or namespace, since
-this file is tracked.
+tells you to commit it. Each entry lists the pull requests merged since the last
+one (anything pushed straight to main is listed under its own heading). PR titles
+and shas only: no URL or namespace, since this file is tracked.
 
 ## 2026-08-13 00:49 UTC — `92255b5`
 

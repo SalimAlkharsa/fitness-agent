@@ -7,7 +7,7 @@
 </div>
 
 <div id="thread">
-  <div class="note">Text a workout to log it, or ask about your training.</div>
+  <div class="note">Text a workout to log it, or ask about your training. Send <code>/clear</code> to start a fresh conversation.</div>
   {# Thinking indicator — pinned to the bottom (order:9999) while a request is in flight. #}
   <div id="thinking"><div class="typing"><i></i><i></i><i></i></div></div>
 </div>
@@ -43,10 +43,11 @@
   function updateHistory() {
     // The server tucks the updated conversation into each turn as raw JSON; the
     // client just round-trips the latest blob (stateless server, history lives here).
+    // No blobs means no turns in the thread — a fresh load or /clear — so the
+    // conversation resets to empty rather than keeping a cleared-away history.
     var blobs = document.querySelectorAll('#thread script[data-history]');
-    if (blobs.length) {
-      document.getElementById('history-field').value = blobs[blobs.length - 1].textContent;
-    }
+    document.getElementById('history-field').value =
+      blobs.length ? blobs[blobs.length - 1].textContent : '';
   }
   function chatError() {
     var t = document.getElementById('thread');

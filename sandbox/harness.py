@@ -54,7 +54,11 @@ class ClaudeCli:
 
     model = HAIKU
 
-    def chat(self, messages, tools=None, json_mode=False, temperature=0.0, model=None):
+    # `deadline`: the agent passes it on every step and the CLI has no timeout knob
+    # to clamp, but it has to be accepted or the loop can't call this at all.
+    def chat(
+        self, messages, tools=None, json_mode=False, temperature=0.0, model=None, deadline=None
+    ):
         system = ROLE + "\n\n".join(m["content"] for m in messages if m["role"] == "system")
         convo = "\n\n".join(
             f"<{m['role']}>\n{m.get('content') or ''}" for m in messages if m["role"] != "system"

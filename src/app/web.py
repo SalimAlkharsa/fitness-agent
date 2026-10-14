@@ -361,6 +361,13 @@ def chat(request: Request) -> Response:
     message = request.form.get("message", "")
     history = request.form.get("history", "")
 
+    # /clear: start a fresh conversation. Answered here, so it never reaches the
+    # model — no quota spent, no background activation billed — and the history
+    # being the client's means clearing it is just a swap. Matched exactly, so a
+    # message that merely mentions the command is still a normal message.
+    if message.strip().lower() == "/clear":
+        return render("_cleared.html", {})
+
     # Deployed, the agent turn (30-50s) outlives DigitalOcean's ~40s synchronous
     # HTTP cap, so dispatch it to a background activation and return a thinking
     # placeholder that polls for the result. Local/tests: run synchronously.
