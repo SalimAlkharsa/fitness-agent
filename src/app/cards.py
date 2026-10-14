@@ -50,6 +50,10 @@ class PendingCard(BaseModel):
     duplicate: DuplicateMatch | None = None  # set when this workout looks already-logged
     workout_id: str | None = None
     label: str = ""
+    # Backfill cards post to the same /confirm route as chat ones, but replaying
+    # history must not publish years of workouts to Strava. Signed, so unforgeable;
+    # defaults to not-chat so a token signed before this existed can't mirror.
+    source: str = "backfill"
 
 
 def _serializer(salt: str = _SALT) -> URLSafeTimedSerializer:

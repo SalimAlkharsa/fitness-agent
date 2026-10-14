@@ -23,6 +23,13 @@ def _flag(name: str) -> bool:
     return (os.getenv(name) or "").strip().lower() in _TRUTHY
 
 
+def _opt(name: str) -> str | None:
+    """Optional secret. `unset` counts as absent: project.yml's substituter
+    rejects empty values, so `make deploy` passes that placeholder instead."""
+    v = (os.getenv(name) or "").strip()
+    return None if v in ("", "unset") else v
+
+
 @dataclass(frozen=True)
 class Settings:
     openrouter_api_key: str | None
@@ -44,6 +51,11 @@ class Settings:
     do_fn_host: str | None
     do_fn_namespace: str | None
     do_fn_auth: str | None
+    # Strava API app (https://www.strava.com/settings/api). All three present →
+    # confirmed workouts are mirrored to Strava; absent → the feature is off.
+    strava_client_id: str | None
+    strava_client_secret: str | None
+    strava_refresh_token: str | None
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -67,6 +79,9 @@ class Settings:
             or None,
             do_fn_namespace=os.getenv("DO_FN_NAMESPACE") or os.getenv("__OW_NAMESPACE") or None,
             do_fn_auth=os.getenv("DO_FN_AUTH") or os.getenv("__OW_API_KEY") or None,
+            strava_client_id=_opt("STRAVA_CLIENT_ID"),
+            strava_client_secret=_opt("STRAVA_CLIENT_SECRET"),
+            strava_refresh_token=_opt("STRAVA_REFRESH_TOKEN"),
         )
 
     @property

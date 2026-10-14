@@ -264,6 +264,31 @@ confirm-first means ✅ always commits. No schema change: both signals derive fr
 columns that already exist (`raw_text`; `exercise`/`sets`/`reps` joined to
 `date`/`type`), the same technique backfill already uses.
 
+## Strava mirror (added 2026-08-06)
+
+Optional, off unless all three `STRAVA_*` vars are set. Strava's MCP connector is
+read-only (and subscriber-gated), so `app/strava.py` uses the v3 REST API.
+
+- **Out**: a confirmed workout is posted as a manual activity. `workout.type` maps
+  to a `sport_type` (default `Workout`); the commit summary becomes the
+  description; duration comes from `start`/`end`, else a flat hour.
+- **Only a fresh chat log pushes.** Backfill cards post to the same `/confirm`
+  route, so the card carries a signed `source` — otherwise pasting a two-year dump
+  would publish all of it. Edits don't re-push either: the row was already
+  mirrored, and Strava has no delete endpoint.
+- **In**: `python -m app.strava backfill [--commit]` maps each run to a `type=run`
+  workout with distance/time/pace in `notes` — no LLM, no schema change (a run is
+  a session with no sets, like basketball). `raw_text` is `strava:<activity_id> …`,
+  so the existing raw-text hash dedup makes re-runs idempotent. Manual activities
+  are skipped: the ones *we* push are manual, and re-importing one would duplicate
+  the session it came from.
+- **The sheet is the source of truth**: the push never raises — a Strava outage
+  appends `Strava ✗` to the confirm message and nothing else changes. `undo`
+  removes the sheet rows only.
+- **Auth** is a refresh-token swap per call (serverless caches nothing). Strava
+  rotates that token and invalidates the old one at once, so the live one is kept
+  in `_meta` with `.env` as the seed; without that, one rotation kills the mirror.
+
 ## Backfill
 
 - `python -m app.backfill dump.txt [--commit]` splits a historical dump on

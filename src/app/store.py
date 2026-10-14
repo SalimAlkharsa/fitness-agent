@@ -383,6 +383,12 @@ class SheetsStore:
                 return
         _retry(lambda: ws.append_row([key, _s(value)], value_input_option="RAW"))
 
+    def meta_get(self, key: str) -> str | None:
+        return self._meta_dict().get(key) or None
+
+    def meta_set(self, key: str, value: str) -> None:
+        self._meta_set(key, value)
+
     @property
     def schema_version(self) -> int:
         return int(self._meta_dict().get("schema_version", 0))

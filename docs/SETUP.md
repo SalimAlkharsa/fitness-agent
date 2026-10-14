@@ -208,6 +208,33 @@ OpenRouter rate limit before pointing it at two years of history.
 
 ---
 
+## 8. Strava (optional)
+
+Every workout you confirm in chat also gets posted to Strava as a manual activity,
+and your Strava runs can be pulled into the sheet.
+
+Since June 2026 Strava's developer program requires an **active Strava
+subscription** for Standard-tier API access — check before wiring this up.
+
+1. Create an API application at <https://www.strava.com/settings/api>, with
+   **Authorization Callback Domain** set to `localhost` (domain only). A new app
+   is in "single player mode": only you can authorize it, which is all this needs.
+2. Put the client id and secret in `.env`, then authorize your own app with
+   `uv run python -m app.strava auth`. It prints a URL — approve it, then copy the
+   single-use `code` param out of the address bar of the page that fails to load.
+   You get a `STRAVA_REFRESH_TOKEN` for `.env`.
+3. Pull your run history in — `uv run python -m app.strava backfill` to preview,
+   `--commit` to write. Runs land as `type=run` sessions with distance, time and
+   pace in the notes; no LLM, so it costs no quota, and re-running skips anything
+   already logged.
+
+Worth knowing: only chat logs are mirrored, so a backfill never publishes your
+history; runs you added to Strava by hand are skipped on import, since that's how
+the mirror's own posts look; and Strava's API has no delete, so an activity posted
+by mistake has to be removed in the Strava app.
+
+---
+
 ## Operating it
 
 | task | how |
